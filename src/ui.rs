@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! The launcher window. All slow work (catalog, downloads, file moves, checking for 3ds Max) runs on
 //! background threads that report back through a channel.
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 """Publish one version of an Open3D app for the launcher.
 
 Takes the app's checkout at a release tag (never the working tree), builds its bundle if the app needs a

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
 <#
 .SYNOPSIS
     Builds a local test catalog from the app checkouts: one zip per bundle plus catalog.json.

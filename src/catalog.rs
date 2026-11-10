@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! The catalog: which apps exist, their latest version and where to download them.
 
 use serde::Deserialize;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! Installing, updating and removing app bundles in the ApplicationPlugins folder.
 //!
 //! A package is a zip whose root holds the bundle folder (`OpenTools.bundle/PackageContents.xml`, ...).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! A small Markdown renderer for release notes: headings, bullets (nested), paragraphs, **bold**, `code`,
 //! [links](url). Lines that continue a bullet or a paragraph (wrapped in the CHANGELOG) are joined to it.
 

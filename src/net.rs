@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 //! Reading the catalog and downloading packages, from the web or from local files.
 
 use crate::catalog::Location;
