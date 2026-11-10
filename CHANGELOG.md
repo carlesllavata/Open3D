@@ -17,3 +17,4 @@ The first version of the launcher: one place to install, update and remove the O
   `OpenTools-dev.bundle`), the launcher warns you, because 3ds Max loads only one of them.
 - **What's new in each version** is shown next to the app, taken from its changelog.
 - **Free software under the GNU GPL v3 or later.** The very first public commit was under the MIT license.
+- **README brought up to date:** no downloadable release yet, the repository layout and how versions are published.

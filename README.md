@@ -16,36 +16,52 @@ remove the Open3D apps and to see what's new in each version.
 
 Requirements: Windows 10 or 11 (64-bit), 3ds Max 2025 or newer.
 
-The launcher is not code-signed yet, so Windows SmartScreen may warn the first time you run it.
+> Status: in development. There is no downloadable release yet: build it from source (below). Once
+> released, it will not be code-signed at first, so Windows SmartScreen may warn the first time you run it.
+> What each version adds: [CHANGELOG.md](CHANGELOG.md).
 
 ### Apps
 
-Apps appear here as they are published. The first ones are **OpenTools** (a tool hub for 3ds Max) and
-**OpenManager** (scene setups and batch rendering).
+The catalog is empty for now: apps are added to it as they are published. The first ones will be
+**OpenTools** (a tool hub for 3ds Max) and **OpenManager** (scene setups and batch rendering).
 
 ## Building from source
 
 Needs [Rust](https://rustup.rs) (stable, MSVC toolchain) and the Visual Studio Build Tools with the C++ workload.
 
 ```
-cargo build --release
+cargo build --release      # target\release\open3d-launcher.exe
 cargo test
 ```
 
-Options for development:
+Options for development (`--help` lists them):
 
 ```
 open3d-launcher --catalog <path-or-url> --plugins-dir <folder>
 ```
 
-`--catalog` reads another catalog (a local `catalog.json` works, with package paths relative to it) and
-`--plugins-dir` installs somewhere other than the real ApplicationPlugins folder.
+`--catalog` reads another catalog instead of the public one (a local `catalog.json` works, with package
+paths relative to it) and `--plugins-dir` installs somewhere other than the real ApplicationPlugins folder.
+
+## Repository layout
+
+| path | what it is |
+|---|---|
+| `src/` | the launcher (Rust + egui): catalog, downloads, install / update / remove, window, release notes |
+| `catalog.json` | the public catalog the launcher reads from this repo's `main` branch |
+| `tools/publish.py`, `tools/apps.json` | publishing an app version (maintainers) |
+| `dev/make_test_catalog.ps1` | a local test catalog built from the app checkouts (maintainers) |
+| `CHANGELOG.md` | what each version of the launcher adds |
 
 ## Catalog format
 
 `catalog.json` lists each app with a permanent `id`, its `bundle` folder name and its latest release:
 version, date, download `url`, `sha256`, `size` and the release notes in Markdown. Packages are zips whose
-root holds the bundle folder. Maintainers publish versions with `tools/publish.py`.
+root holds the bundle folder, attached to releases of this repository tagged `<id>-vX.Y.Z`.
+
+Maintainers publish a version with `tools/publish.py <id>` (run with the Python that ships with 3ds Max;
+needs the GitHub CLI). It builds the package from the app's release tag, creates the release and updates
+`catalog.json`; `--dry-run` builds the package without uploading anything.
 
 ## License
 
