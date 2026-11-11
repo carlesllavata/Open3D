@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! The tray (menu bar) icon: show the window, check for updates, quit.
+//! The notification-area icon: show the window, check for updates, open the links, quit.
 
 use open3d_launcher_ui_egui::i18n;
 
 use std::sync::mpsc::{Receiver, Sender, channel};
 
-use tray_icon::menu::{Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem};
+use tray_icon::menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem};
 use tray_icon::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 
 pub enum TrayAction {
@@ -18,9 +18,6 @@ pub enum TrayAction {
 
 pub struct Tray {
     icon: TrayIcon,
-    show: MenuId,
-    check: MenuId,
-    quit: MenuId,
     rx: Receiver<TrayAction>,
     tooltip: String,
     language: String,
@@ -33,15 +30,6 @@ fn load_icon() -> Result<tray_icon::Icon, String> {
     let img = image::load_from_memory_with_format(bytes, image::ImageFormat::Png).map_err(|e| e.to_string())?.into_rgba8();
     let (w, h) = img.dimensions();
     tray_icon::Icon::from_rgba(img.into_raw(), w, h).map_err(|e| e.to_string())
-}
-
-/// Names the icon for Linux and the BSDs. tray-icon's default id is "<pid>-<n>" and the title is
-/// empty, and StatusNotifierItem hosts (KDE, GNOME's AppIndicator extension) fall back to the id
-/// when there is no title, so the tray showed a number like "61965-1" instead of the app name.
-/// Windows and macOS keep tray-icon's defaults: there the title is drawn next to the icon (macOS)
-/// or unsupported (Windows), and the id never reaches the user.
-fn identity(builder: TrayIconBuilder) -> TrayIconBuilder {
-    if cfg!(any(target_os = "macos", target_os = "windows")) { builder } else { builder.with_id("open3d-launcher").with_title("Open3D Launcher") }
 }
 
 impl Tray {
@@ -61,19 +49,19 @@ impl Tray {
         let links = [(website.id().clone(), WEBSITE_URL), (github.id().clone(), GITHUB_URL)];
         let issues_id = issues.id().clone();
         let image = load_icon()?;
-        let builder = identity(TrayIconBuilder::new()).with_menu(Box::new(menu));
-        // macOS draws the icon as a template image (recoloured for light and dark menu bars).
-        #[cfg(target_os = "macos")]
-        let builder = builder.with_icon_templated(image);
-        #[cfg(not(target_os = "macos"))]
-        let builder = builder.with_icon(image);
-        let icon = builder.with_menu_on_left_click(cfg!(target_os = "macos")).with_tooltip("Open3D Launcher").build().map_err(|e| e.to_string())?;
+        let icon = TrayIconBuilder::new()
+            .with_menu(Box::new(menu))
+            .with_icon(image)
+            .with_menu_on_left_click(false)
+            .with_tooltip("Open3D Launcher")
+            .build()
+            .map_err(|e| e.to_string())?;
         let (tx, rx): (Sender<TrayAction>, Receiver<TrayAction>) = channel();
         let (show_id, check_id, quit_id) = (show.id().clone(), check.id().clone(), quit.id().clone());
         {
             let tx = tx.clone();
             let wake = wake.clone();
-            let ids = (show_id.clone(), check_id.clone(), quit_id.clone(), issues_id);
+            let ids = (show_id, check_id, quit_id, issues_id);
             MenuEvent::set_event_handler(Some(move |e: MenuEvent| {
                 let action = if e.id == ids.0 {
                     TrayAction::Show
@@ -109,7 +97,7 @@ impl Tray {
             (issues, "Report an issue on GitHub"),
             (quit, "Quit Open3D Launcher"),
         ];
-        Ok(Self { icon, show: show_id, check: check_id, quit: quit_id, rx, tooltip: String::new(), language: String::new(), labels })
+        Ok(Self { icon, rx, tooltip: String::new(), language: String::new(), labels })
     }
 
     pub fn actions(&self) -> Vec<TrayAction> {
@@ -132,28 +120,6 @@ impl Tray {
         if tip != self.tooltip {
             let _ = self.icon.set_tooltip(Some(&tip));
             self.tooltip = tip;
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn ids(&self) -> (&MenuId, &MenuId, &MenuId) {
-        (&self.show, &self.check, &self.quit)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn linux_tray_has_a_stable_id_not_the_process_id() {
-        let id = identity(TrayIconBuilder::new()).id().clone();
-        let pid = std::process::id().to_string();
-        if cfg!(any(target_os = "macos", target_os = "windows")) {
-            // Left as tray-icon picks it there: "<pid>-<n>".
-            assert!(id.as_ref().starts_with(&pid), "{id:?}");
-        } else {
-            assert_eq!(id.as_ref(), "open3d-launcher");
         }
     }
 }

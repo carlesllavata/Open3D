@@ -87,18 +87,6 @@ fn system() -> Option<SystemProxy> {
     Some(SystemProxy { host, port, bypass: windows_bypass(&overrides), source: "Windows proxy settings" })
 }
 
-#[cfg(target_os = "macos")]
-fn system() -> Option<SystemProxy> {
-    let out = crate::process::capture("/usr/sbin/scutil", &["--proxy"], std::time::Duration::from_secs(3))?;
-    parse_scutil(&out)
-}
-
-#[cfg(not(any(windows, target_os = "macos")))]
-fn system() -> Option<SystemProxy> {
-    // Linux and the BSDs: desktop proxy settings reach programs through the environment.
-    None
-}
-
 /// Parses Windows' `ProxyServer` value: either `host:port` for every protocol, or a list such as
 /// `http=h:p;https=h:p;socks=h:p`. Prefers the HTTPS entry (every request is HTTPS), then HTTP.
 /// SOCKS-only settings are ignored.
@@ -149,46 +137,6 @@ pub fn windows_bypass(value: &str) -> Vec<String> {
     value.split([';', ' ']).map(str::trim).filter(|e| !e.is_empty() && !e.eq_ignore_ascii_case("<local>")).map(str::to_string).collect()
 }
 
-/// Parses `scutil --proxy` output: the HTTPS proxy when enabled, else the HTTP proxy, plus the
-/// exceptions list.
-pub fn parse_scutil(out: &str) -> Option<SystemProxy> {
-    let mut fields: Vec<(&str, &str)> = Vec::new();
-    let mut bypass = Vec::new();
-    let mut in_exceptions = false;
-    for line in out.lines().map(str::trim) {
-        if in_exceptions {
-            if line.starts_with('}') {
-                in_exceptions = false;
-            } else if let Some((_, v)) = line.split_once(" : ") {
-                let v = v.trim();
-                if !v.is_empty() {
-                    bypass.push(v.to_string());
-                }
-            }
-            continue;
-        }
-        let Some((k, v)) = line.split_once(" : ") else { continue };
-        let (k, v) = (k.trim(), v.trim());
-        if k == "ExceptionsList" && v.starts_with("<array>") {
-            in_exceptions = !v.ends_with('}');
-        } else {
-            fields.push((k, v));
-        }
-    }
-    let get = |key: &str| fields.iter().find(|(k, _)| *k == key).map(|(_, v)| *v);
-    ["HTTPS", "HTTP"].into_iter().find_map(|kind| {
-        if get(&format!("{kind}Enable")) != Some("1") {
-            return None;
-        }
-        let host = get(&format!("{kind}Proxy")).filter(|h| !h.is_empty() && !h.contains(['@', '/', ' ']))?;
-        let port = match get(&format!("{kind}Port")) {
-            Some(p) => Some(p.parse().ok()?),
-            None => None,
-        };
-        Some(SystemProxy { host: host.to_string(), port, bypass: bypass.clone(), source: "macOS proxy settings" })
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -227,44 +175,6 @@ mod tests {
     fn windows_bypass_list() {
         assert_eq!(windows_bypass("*.local;10.*; localhost;<local>"), ["*.local", "10.*", "localhost"]);
         assert!(windows_bypass("").is_empty());
-    }
-
-    const SCUTIL: &str = "<dictionary> {
-  ExceptionsList : <array> {
-    0 : *.local
-    1 : 169.254/16
-  }
-  FTPPassive : 1
-  HTTPEnable : 1
-  HTTPPort : 8080
-  HTTPProxy : http.corp
-  HTTPSEnable : 1
-  HTTPSPort : 3128
-  HTTPSProxy : https.corp
-  SOCKSEnable : 0
-}
-";
-
-    #[test]
-    fn scutil_https_proxy_with_exceptions() {
-        let p = parse_scutil(SCUTIL).unwrap();
-        assert_eq!((p.host.as_str(), p.port), ("https.corp", Some(3128)));
-        assert_eq!(p.bypass, ["*.local", "169.254/16"]);
-    }
-
-    #[test]
-    fn scutil_falls_back_to_http_proxy() {
-        let out = SCUTIL.replace("HTTPSEnable : 1", "HTTPSEnable : 0");
-        let p = parse_scutil(&out).unwrap();
-        assert_eq!((p.host.as_str(), p.port), ("http.corp", Some(8080)));
-    }
-
-    #[test]
-    fn scutil_without_a_proxy() {
-        let out = "<dictionary> {\n  ExceptionsList : <array> {\n    0 : *.local\n  }\n  FTPPassive : 1\n  HTTPEnable : 0\n  HTTPSEnable : 0\n}\n";
-        assert_eq!(parse_scutil(out), None);
-        assert_eq!(parse_scutil(""), None);
-        assert_eq!(parse_scutil("HTTPSEnable : 1\nHTTPSProxy : \nHTTPSPort : 1\n"), None);
     }
 
     #[test]

@@ -15,44 +15,17 @@ use open3d_launcher_core::{InstallSource, Installed, SuiteApp, version};
 
 use crate::manifest::Manifest;
 
-/// One look at the system, shared by every app's detection (package lists are read once).
-#[derive(Default)]
-pub struct Snapshot {
-    #[allow(dead_code)]
-    packages: Vec<crate::packages::Package>,
-}
-
-impl Snapshot {
-    pub fn take() -> Self {
-        #[cfg(target_os = "linux")]
-        {
-            Self { packages: linux::packages() }
-        }
-        #[cfg(not(target_os = "linux"))]
-        {
-            Self::default()
-        }
-    }
-}
-
 /// What's installed of `app`, best source first.
-pub fn detect(app: &SuiteApp, manifest: &Manifest, snapshot: &Snapshot) -> Option<Installed> {
-    let _ = snapshot;
+pub fn detect(app: &SuiteApp, manifest: &Manifest) -> Option<Installed> {
     if let Some(found) = from_manifest(app, manifest) {
         return Some(found);
     }
-    #[cfg(target_os = "macos")]
-    return macos::detect(app);
     // Open3D apps are 3ds Max bundles: one in ApplicationPlugins is found whoever put it there.
     if let Some(found) = crate::max_bundle::detect(app) {
         return Some(found);
     }
     #[cfg(windows)]
     return windows::detect(app);
-    #[cfg(target_os = "linux")]
-    return linux::detect(app, snapshot);
-    #[cfg(target_os = "freebsd")]
-    return freebsd::detect(app);
     #[allow(unreachable_code)]
     None
 }
@@ -76,10 +49,6 @@ fn from_manifest(app: &SuiteApp, manifest: &Manifest) -> Option<Installed> {
         return Some(found);
     }
     // On macOS the bundle itself is the truth (the app may have updated itself).
-    #[cfg(target_os = "macos")]
-    if rec.kind == open3d_launcher_core::PackageKind::Dmg {
-        return macos::read_bundle(app, &rec.path);
-    }
     Some(Installed {
         version: version::parse(&rec.version),
         source: InstallSource::Launcher,
@@ -91,32 +60,12 @@ fn from_manifest(app: &SuiteApp, manifest: &Manifest) -> Option<Installed> {
     })
 }
 
-/// Whether a file name is an AppImage of the app with asset stems `stems`, and the version its
-/// name gives. Matches only the names a release AppImage ends up with: the release's own
-/// (`phototool-0.6.0-linux-x86_64.AppImage`) and the bare app name Gear Lever renames it to
-/// (`phototool.appimage`, version unknown). The extension's case doesn't matter.
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
-pub(crate) fn appimage_version(name: &str, stems: &[&str]) -> Option<Option<String>> {
-    let split = name.len().checked_sub(".appimage".len())?;
-    let (base, ext) = (name.get(..split)?, name.get(split..)?);
-    if !ext.eq_ignore_ascii_case(".appimage") {
-        return None;
-    }
-    if stems.iter().any(|s| base.eq_ignore_ascii_case(s)) {
-        return Some(None);
-    }
-    let parsed = open3d_launcher_core::platform::parse_asset_name(&format!("{base}.AppImage"), stems)?;
-    (parsed.kind == open3d_launcher_core::PackageKind::AppImage && parsed.token.starts_with("linux-")).then_some(Some(parsed.version))
-}
-
 /// Who our Windows Installer packages name as their publisher. A community app's names its own
 /// ([`SuiteApp::msi_publisher`]).
-#[cfg_attr(not(windows), allow(dead_code))]
 const PUBLISHER: &str = "Open3D";
 
 /// Whether an uninstall entry's `DisplayName` and `Publisher` are `app`'s, under any name its
 /// installers have registered.
-#[cfg_attr(not(windows), allow(dead_code))]
 fn is_installer_entry(app: &SuiteApp, display_name: &str, publisher: &str) -> bool {
     publisher == app.msi_publisher.unwrap_or(PUBLISHER) && app.names().any(|n| n == display_name)
 }
@@ -125,7 +74,6 @@ fn is_installer_entry(app: &SuiteApp, display_name: &str, publisher: &str) -> bo
 /// `InstallLocation`, then `<App>` under each install root (the `Open3D` suite folder first, then the
 /// root itself, for Program Files and the per-user Programs folder) for each name the app has had,
 /// and in each folder `<stem>.exe` for each stem, current first. Doesn't touch the disk.
-#[cfg_attr(not(windows), allow(dead_code))]
 fn exe_candidates(app: &SuiteApp, location: Option<&Path>, program_files: &[PathBuf]) -> Vec<PathBuf> {
     let in_program_files = program_files.iter().flat_map(|root| app.names().map(move |n| root.join(n)));
     let dirs = location.map(Path::to_path_buf).into_iter().chain(in_program_files);
@@ -134,7 +82,6 @@ fn exe_candidates(app: &SuiteApp, location: Option<&Path>, program_files: &[Path
 
 /// The folder under `Open3D` that the MSI installs to when it is not the display name: the launcher
 /// installs to `Open3D\Launcher`, the apps to `Open3D\<App>`.
-#[cfg_attr(not(windows), allow(dead_code))]
 fn suite_folders(app: &SuiteApp, roots: &[PathBuf]) -> Vec<PathBuf> {
     if app.id != open3d_launcher_core::catalog::LAUNCHER_ID {
         return Vec::new();
@@ -144,95 +91,12 @@ fn suite_folders(app: &SuiteApp, roots: &[PathBuf]) -> Vec<PathBuf> {
 
 /// The registry keys an MSI records its install folder in (value `InstallDir`). The launcher's package
 /// keeps its own key, under the publisher name.
-#[cfg_attr(not(windows), allow(dead_code))]
 fn install_dir_keys(app: &SuiteApp) -> Vec<String> {
     let mut keys = vec![format!(r"SOFTWARE\{}", app.name)];
     if app.id == open3d_launcher_core::catalog::LAUNCHER_ID {
         keys.push(format!(r"SOFTWARE\{PUBLISHER}\{}", app.name));
     }
     keys
-}
-
-/// Version from `<app> --version` output. Binaries print the machine id (`phototool 0.7.0`),
-/// the display name (`SoundTool 0.5.0`), or a former id (`printtool 0.2.1` for PdfTool).
-#[cfg_attr(not(any(target_os = "linux", target_os = "freebsd")), allow(dead_code))]
-fn parse_cli_version(line: &str, app: &SuiteApp) -> Option<version::Version> {
-    let line = line.trim();
-    for prefix in app.stems().chain(std::iter::once(app.name)) {
-        if let Some(rest) = strip_cli_prefix(line, prefix)
-            && let Some(tok) = rest.split_whitespace().next()
-            && let Some(v) = version::parse(tok)
-        {
-            return Some(v);
-        }
-    }
-    version::parse_package(line)
-}
-
-fn strip_cli_prefix<'a>(line: &'a str, prefix: &str) -> Option<&'a str> {
-    let (head, rest) = line.split_at_checked(prefix.len())?;
-    if !head.eq_ignore_ascii_case(prefix) {
-        return None;
-    }
-    match rest.chars().next() {
-        None => Some(rest),
-        Some(c) if c.is_ascii_whitespace() => Some(rest),
-        _ => None,
-    }
-}
-
-#[cfg(target_os = "macos")]
-pub mod macos {
-    use std::path::{Path, PathBuf};
-
-    use super::{InstallSource, Installed, SuiteApp, version};
-
-    /// Where a `.app` might be: the system and the user's Applications folders.
-    pub fn candidates(app: &SuiteApp) -> Vec<PathBuf> {
-        let home = dirs::home_dir();
-        let mut out = Vec::new();
-        for name in app.mac_bundle_names() {
-            let bundle = format!("{name}.app");
-            out.push(Path::new("/Applications").join(&bundle));
-            if let Some(home) = &home {
-                out.push(home.join("Applications").join(&bundle));
-            }
-        }
-        out
-    }
-
-    /// Finds an installed `.app` bundle for `app` in the standard Applications folders.
-    pub fn detect(app: &SuiteApp) -> Option<Installed> {
-        candidates(app).iter().find_map(|p| read_bundle(app, p))
-    }
-
-    /// Reads a bundle's `Info.plist`; `None` unless it's really this app.
-    pub fn read_bundle(app: &SuiteApp, path: &Path) -> Option<Installed> {
-        let plist = plist::Value::from_file(path.join("Contents/Info.plist")).ok()?;
-        let dict = plist.as_dictionary()?;
-        // Its current bundle id or an older one (SolidTool was io.github.carlesllavata.solidtool).
-        let id = dict.get("CFBundleIdentifier")?.as_string()?;
-        if !app.bundle_ids().any(|b| b == id) {
-            return None;
-        }
-        // `<App>Version` carries the full version including a pre-release suffix;
-        // CFBundleShortVersionString only has the numbers.
-        let full_keys: Vec<String> = app.mac_bundle_names().map(|n| format!("{n}Version")).collect();
-        let text = full_keys
-            .iter()
-            .map(String::as_str)
-            .chain(["CFBundleShortVersionString", "CFBundleVersion"])
-            .find_map(|k| dict.get(k).and_then(plist::Value::as_string));
-        Some(Installed {
-            version: text.and_then(version::parse),
-            source: InstallSource::MacApp,
-            location: path.display().to_string(),
-            package: None,
-            externally_managed: false,
-            origin: None,
-            installation: None,
-        })
-    }
 }
 
 /// Newest version first; an entry with no version comes after every entry with one.
@@ -470,371 +334,6 @@ pub mod windows {
     }
 }
 
-#[cfg(target_os = "linux")]
-pub mod linux {
-    use std::path::{Path, PathBuf};
-    use std::time::Duration;
-
-    use super::{InstallSource, Installed, Snapshot, SuiteApp, appimage_version, parse_cli_version, version};
-    use crate::packages::{self, Package};
-    use crate::process::capture;
-
-    /// Installed Open3D app packages from every package manager on this system (dpkg, rpm,
-    /// pacman, Flatpak). Read once per detection pass.
-    pub fn packages() -> Vec<Package> {
-        let ours = |name: &str| {
-            open3d_launcher_core::hosted_catalog::apps().iter().any(|a| {
-                [InstallSource::Deb, InstallSource::Rpm, InstallSource::Pacman, InstallSource::Flatpak]
-                    .iter()
-                    .any(|m| crate::packages::candidate_names(a, *m).iter().any(|n| n == name))
-            })
-        };
-        let t = Duration::from_secs(10);
-        let mut out = Vec::new();
-        let mut add = |manager, user, list: Vec<(String, String)>| {
-            out.extend(list.into_iter().filter(|(n, _)| ours(n)).map(|(name, version)| Package {
-                manager,
-                name,
-                version,
-                user,
-                origin: None,
-                installation: None,
-            }));
-        };
-        if let Some(list) = capture("dpkg-query", &["-W", "-f", "${Package}|${db:Status-Status}|${Version}\n"], t) {
-            add(InstallSource::Deb, false, packages::parse_dpkg(&list));
-        }
-        if let Some(list) = capture("rpm", &["-qa", "--qf", "%{NAME}|%{VERSION}\n"], t) {
-            add(InstallSource::Rpm, false, packages::parse_rpm(&list));
-        }
-        // Only run `pacman` where its database exists: elsewhere `pacman` on PATH may be an unrelated program
-        // (the Pac-Man game in /usr/games on Debian-family systems).
-        if has_pacman_db()
-            && let Some(list) = capture("pacman", &["-Q"], t)
-        {
-            add(InstallSource::Pacman, false, packages::parse_pacman(&list));
-        }
-        let arch = format!("--arch={}", std::env::consts::ARCH);
-        // User installs are marked so `packages::find` reads the user copy the launcher updates, not a
-        // stale system one (#881). The unscoped list after it still covers every system installation,
-        // named ones included (`--system` is only the default one).
-        let mut user_ids = Vec::new();
-        for scope in [&["--user"][..], &[]] {
-            let list_args = [&["list", "--app"][..], scope, &[&arch, "--columns=application,version,origin,installation"]].concat();
-            if let Some(list) = crate::process::capture_flatpak(&list_args, t) {
-                let mut flatpaks = packages::parse_flatpak_list_with_origin(&list);
-                // The unscoped list repeats the user installs: the user pass already has them.
-                flatpaks.retain(|(id, _, _, _)| !user_ids.contains(id));
-                if !scope.is_empty() {
-                    user_ids.extend(flatpaks.iter().map(|(id, _, _, _)| id.clone()));
-                }
-                // Bundles built from a release tarball often list no version: ask Flatpak directly.
-                for (id, version, _, installation) in flatpaks.iter_mut().filter(|(id, v, _, _)| {
-                    v.is_empty() && open3d_launcher_core::hosted_catalog::apps().iter().any(|a| a.bundle_ids().any(|b| b == *id))
-                }) {
-                    let scope_arg = packages::flatpak_scope(if scope.is_empty() { installation.as_deref() } else { Some("user") });
-                    let info_args = ["info", &scope_arg, &arch, id];
-                    if let Some(v) = crate::process::capture_flatpak(&info_args, t).as_deref().and_then(packages::parse_flatpak_info) {
-                        *version = v;
-                    }
-                }
-                let is_user = !scope.is_empty();
-                out.extend(flatpaks.into_iter().filter(|(n, _, _, _)| ours(n)).map(|(name, version, origin, installation)| {
-                    let user_install = is_user || installation.as_deref() == Some("user");
-                    let resolved_installation = installation.or_else(|| if user_install { Some("user".into()) } else { Some("system".into()) });
-                    Package { manager: InstallSource::Flatpak, name, version, user: user_install, origin, installation: resolved_installation }
-                }));
-            }
-        }
-        out
-    }
-
-    /// The local package database of Arch's pacman.
-    pub(crate) const PACMAN_DB: &str = "/var/lib/pacman/local";
-
-    /// True when `db` is a directory, i.e. this system really uses pacman.
-    pub(crate) fn pacman_db_present(db: &Path) -> bool {
-        db.is_dir()
-    }
-
-    /// True when the system's default pacman database directory exists.
-    pub(crate) fn has_pacman_db() -> bool {
-        pacman_db_present(Path::new(PACMAN_DB))
-    }
-
-    /// Where a package put the app's binary: on `PATH`, else `/usr/bin/<id>`.
-    fn binary_on_path(id: &str) -> String {
-        crate::process::which(id).unwrap_or_else(|| PathBuf::from("/usr/bin").join(id)).display().to_string()
-    }
-
-    /// `~/Applications`, where the launcher puts AppImages (the AppImageLauncher convention).
-    pub fn appimage_dir() -> Option<PathBuf> {
-        dirs::home_dir().map(|h| h.join("Applications"))
-    }
-
-    /// Every folder searched for AppImages, the launcher's own first: `~/Applications`,
-    /// `~/AppImages` (Gear Lever's default) and `~/.local/bin`.
-    pub fn appimage_dirs() -> Vec<PathBuf> {
-        let Some(home) = dirs::home_dir() else { return Vec::new() };
-        vec![home.join("Applications"), home.join("AppImages"), home.join(".local").join("bin")]
-    }
-
-    /// AppImages of `app` in `dirs`, newest first (unknown versions last; earlier folders win
-    /// ties).
-    pub fn appimages_in(app: &SuiteApp, dirs: &[PathBuf]) -> Vec<(PathBuf, Option<version::Version>)> {
-        let stems: Vec<&str> = app.stems().collect();
-        let mut out: Vec<(PathBuf, Option<version::Version>)> = Vec::new();
-        for dir in dirs {
-            let Ok(entries) = std::fs::read_dir(dir) else { continue };
-            let mut found: Vec<(PathBuf, Option<version::Version>)> = entries
-                .flatten()
-                .filter_map(|e| {
-                    let name = e.file_name().into_string().ok()?;
-                    let version = appimage_version(&name, &stems)?;
-                    let path = e.path();
-                    path.is_file().then(|| (path, version.as_deref().and_then(version::parse)))
-                })
-                .collect();
-            found.sort_by(|a, b| a.0.cmp(&b.0));
-            out.extend(found);
-        }
-        // Stable sort: equal versions keep the folder order above.
-        out.sort_by(|a, b| match (&b.1, &a.1) {
-            (Some(x), Some(y)) => version::compare(x, y),
-            (Some(_), None) => std::cmp::Ordering::Greater,
-            (None, Some(_)) => std::cmp::Ordering::Less,
-            (None, None) => std::cmp::Ordering::Equal,
-        });
-        out
-    }
-
-    /// AppImages of `app` in any of the usual folders, newest first.
-    pub fn appimages(app: &SuiteApp) -> Vec<(PathBuf, Option<version::Version>)> {
-        appimages_in(app, &appimage_dirs())
-    }
-
-    /// How the app is installed, in this order: an AppImage the launcher put down, a package
-    /// (deb, rpm, pacman or Flatpak), a package the launcher knows no name for but which owns the
-    /// app's binary ([`owned_install`]), else a binary found on disk.
-    pub fn detect(app: &SuiteApp, snapshot: &Snapshot) -> Option<Installed> {
-        if let Some((path, version)) = appimages(app).into_iter().next() {
-            return Some(Installed {
-                version,
-                source: InstallSource::AppImage,
-                location: path.display().to_string(),
-                package: None,
-                externally_managed: false,
-                origin: None,
-                installation: None,
-            });
-        }
-        let order = [InstallSource::Deb, InstallSource::Rpm, InstallSource::Pacman, InstallSource::Flatpak];
-        if let Some(p) = packages::find(app, &snapshot.packages, &order) {
-            // A Flatpak runs under the id it was found under, which may be an older one.
-            let location = if p.manager == InstallSource::Flatpak { p.name.clone() } else { binary_on_path(app.id) };
-            let externally_managed = p.manager == InstallSource::Flatpak
-                && p.origin.as_deref().is_none_or(|origin| {
-                    if packages::is_flatpark_origin(origin) {
-                        return true;
-                    }
-                    let scope = packages::flatpak_scope(p.installation.as_deref());
-                    crate::process::capture_flatpak(&["remotes", &scope, "--show-disabled", "--columns=name,url"], Duration::from_secs(10))
-                        .is_none_or(|remotes| packages::remote_manages_flatpak(origin, &remotes))
-                });
-            return Some(Installed {
-                version: packages::version_of(p),
-                source: p.manager,
-                location,
-                package: Some(p.name.clone()),
-                externally_managed,
-                origin: p.origin.clone(),
-                installation: p.installation.clone(),
-            });
-        }
-        // Before any binary is run to learn a version, the package database is asked whether a
-        // package owns it (see [`owned_install`]).
-        if let Some(installed) = owned_install(app) {
-            return Some(installed);
-        }
-        detect_system_install(app)
-    }
-
-    /// A package the launcher knows no name for may still own the app's binary: a release may
-    /// name its deb `art-tool` while the app's own names are `arttool` and its bundle id. When
-    /// that happens the binary is never run to learn a version — `--version` starts apps that
-    /// don't support the flag (#1298) — so the package database is asked which package owns the
-    /// file, and the install is reported under that manager with the package's own version.
-    fn owned_install(app: &SuiteApp) -> Option<Installed> {
-        let bin = find_binary(app.id)?;
-        let owned =
-            [owned_by_dpkg(&bin), owned_by_rpm(&bin), has_pacman_db().then(|| owned_by_pacman(&bin)).flatten()].into_iter().flatten().next()?;
-        Some(Installed {
-            version: packages::version_of(&owned),
-            source: owned.manager,
-            location: bin.display().to_string(),
-            package: Some(owned.name),
-            externally_managed: false,
-            origin: None,
-            installation: None,
-        })
-    }
-
-    /// The dpkg package owning `bin`: `dpkg-query -S` names it, and one `-W` reads its version.
-    fn owned_by_dpkg(bin: &Path) -> Option<Package> {
-        let bin = bin.to_str()?;
-        let t = Duration::from_secs(5);
-        let name = packages::parse_dpkg_search(&capture("dpkg-query", &["-S", bin], t)?, bin)?;
-        let version = capture("dpkg-query", &["-W", "-f", "${Version}\n", &name], t).filter(|v| !v.trim().is_empty())?;
-        Some(Package { manager: InstallSource::Deb, name, version, user: false, origin: None, installation: None })
-    }
-
-    /// The rpm package owning `bin`: `rpm -qf` names it and its version in one query.
-    fn owned_by_rpm(bin: &Path) -> Option<Package> {
-        let bin = bin.to_str()?;
-        let (name, version) = packages::parse_rpm_owner(&capture("rpm", &["-qf", bin, "--qf", "%{NAME}|%{VERSION}\n"], Duration::from_secs(5))?)?;
-        Some(Package { manager: InstallSource::Rpm, name, version, user: false, origin: None, installation: None })
-    }
-
-    /// The pacman package owning `bin`: `pacman -Qo` names it and its version in one line.
-    fn owned_by_pacman(bin: &Path) -> Option<Package> {
-        let bin = bin.to_str()?;
-        let (name, version) = packages::parse_pacman_owner(&capture("pacman", &["-Qo", bin], Duration::from_secs(5))?)?;
-        Some(Package { manager: InstallSource::Pacman, name, version, user: false, origin: None, installation: None })
-    }
-
-    /// When the package managers don't report the app (a query timed out or was locked, an
-    /// unlisted package name, or a sandbox that can't see them) but its binary is there. It is
-    /// reported as a system binary: the launcher can open it but leaves updating and removing it
-    /// to whatever installed it, since it can't tell which package manager that was.
-    fn detect_system_install(app: &SuiteApp) -> Option<Installed> {
-        let bin = find_binary(app.id)?;
-        Some(Installed {
-            version: binary_version(&bin, app),
-            source: InstallSource::Binary,
-            location: bin.display().to_string(),
-            package: None,
-            externally_managed: false,
-            origin: None,
-            installation: None,
-        })
-    }
-
-    /// The app's binary on `PATH`, else in `/usr/bin`, `/usr/local/bin` or `~/.local/bin`.
-    fn find_binary(id: &str) -> Option<PathBuf> {
-        let on_path = crate::process::which(id);
-        let usual = ["/usr/bin", "/usr/local/bin"].into_iter().map(PathBuf::from).chain(dirs::home_dir().map(|h| h.join(".local/bin")));
-        on_path.or_else(|| usual.map(|d| d.join(id)).find(|p| p.is_file()))
-    }
-
-    /// The version `bin --version` prints, or `None` when it can't be started, doesn't finish
-    /// within 5 seconds (it is then killed), exits with an error, or prints no version.
-    pub(crate) fn binary_version(bin: &Path, app: &SuiteApp) -> Option<version::Version> {
-        let out = crate::process::capture(bin.to_str()?, &["--version"], Duration::from_secs(5))?;
-        parse_cli_version(out.trim(), app)
-    }
-}
-
-#[cfg(target_os = "freebsd")]
-pub mod freebsd {
-    use std::path::Path;
-    use std::time::Duration;
-
-    use super::{InstallSource, Installed, SuiteApp, parse_cli_version, version};
-
-    pub fn detect(app: &SuiteApp) -> Option<Installed> {
-        let bin = Path::new("/usr/local/bin").join(app.id);
-        if !bin.exists() {
-            return None;
-        }
-        Some(Installed {
-            version: binary_version(&bin, app),
-            source: InstallSource::Binary,
-            location: bin.display().to_string(),
-            package: None,
-            externally_managed: false,
-            origin: None,
-            installation: None,
-        })
-    }
-
-    /// `<app> --version` prints `<app> 0.5.0 (sha, date)`.
-    fn binary_version(bin: &Path, app: &SuiteApp) -> Option<version::Version> {
-        let out = crate::process::capture(bin.to_str()?, &["--version"], Duration::from_secs(5))?;
-        parse_cli_version(out.trim(), app)
-    }
-}
-
-#[cfg(all(test, target_os = "linux"))]
-mod linux_tests {
-    use super::*;
-
-    #[test]
-    fn ours_filter_matches_rpm_packages() {
-        let ours = |name: &str| {
-            open3d_launcher_core::hosted_catalog::apps().iter().any(|a| {
-                [InstallSource::Deb, InstallSource::Rpm, InstallSource::Pacman, InstallSource::Flatpak]
-                    .iter()
-                    .any(|m| crate::packages::candidate_names(a, *m).iter().any(|n| n == name))
-            })
-        };
-        assert!(ours("phototool"));
-        assert!(ours("io.github.carlesllavata.phototool"));
-        assert!(ours("io.tangencylabs.solidtool"));
-        assert!(ours("io.github.carlesllavata.solidtool"));
-        assert!(ours("io.github.carlesllavata.solvetool"));
-        assert!(!ours("unrelated-package"));
-    }
-
-    #[test]
-    fn pacman_is_only_queried_where_its_database_exists() {
-        let root = tempfile::tempdir().unwrap();
-        assert!(!linux::pacman_db_present(&root.path().join("local")));
-        std::fs::create_dir(root.path().join("local")).unwrap();
-        assert!(linux::pacman_db_present(&root.path().join("local")));
-    }
-
-    /// `linux::binary_version` on a script the test just wrote. Another test thread that forks
-    /// while the script is still open for writing holds that descriptor until it execs, and running
-    /// the script in that window fails with ETXTBSY ("Text file busy"), so a miss is retried.
-    fn binary_version_of_new_script(bin: &Path, app: &SuiteApp) -> Option<version::Version> {
-        for _ in 0..20 {
-            if let Some(v) = linux::binary_version(bin, app) {
-                return Some(v);
-            }
-            std::thread::sleep(std::time::Duration::from_millis(50));
-        }
-        None
-    }
-
-    #[test]
-    fn reads_binary_version_from_cli() {
-        let photo = SuiteApp::by_id("phototool").unwrap();
-        let temp_dir = tempfile::tempdir().unwrap();
-        let bin = temp_dir.path().join("phototool");
-        std::fs::write(&bin, "#!/bin/sh\necho 'phototool 0.6.0 (0c72d9542, 2026-10-10)'\n").unwrap();
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
-        let ver = binary_version_of_new_script(&bin, photo);
-        assert_eq!(ver.unwrap().to_string(), "0.6.0");
-    }
-
-    #[test]
-    fn reads_binary_version_when_the_cli_uses_the_display_name_or_a_former_id() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        use std::os::unix::fs::PermissionsExt;
-        let write = |name: &str, script: &str| {
-            let bin = temp_dir.path().join(name);
-            std::fs::write(&bin, script).unwrap();
-            std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
-            bin
-        };
-        let sound = write("soundtool", "#!/bin/sh\necho 'SoundTool 0.5.0'\n");
-        assert_eq!(binary_version_of_new_script(&sound, SuiteApp::by_id("soundtool").unwrap()).unwrap().to_string(), "0.5.0");
-        let pdf = write("pdftool", "#!/bin/sh\necho 'printtool 0.2.1'\n");
-        assert_eq!(binary_version_of_new_script(&pdf, SuiteApp::by_id("pdftool").unwrap()).unwrap().to_string(), "0.2.1");
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use open3d_launcher_core::SUITE;
@@ -978,57 +477,6 @@ mod tests {
         rsrc.resize(usize::try_from(raw).unwrap(), 0);
         file.extend(rsrc);
         file
-    }
-
-    #[test]
-    fn recognises_appimage_names_conservatively() {
-        let pdf = ["pdftool", "printtool"];
-        let v = |n: &str| appimage_version(n, &pdf);
-        assert_eq!(v("pdftool-0.3.0-linux-x86_64.AppImage"), Some(Some("0.3.0".into())));
-        assert_eq!(v("printtool-0.2.1-linux-aarch64.appimage"), Some(Some("0.2.1".into())));
-        assert_eq!(v("pdftool-0.3.0-rc.1-linux-x86_64.AppImage"), Some(Some("0.3.0-rc.1".into())));
-        // Gear Lever's rename, and a plain rename by hand.
-        assert_eq!(v("pdftool.appimage"), Some(None));
-        assert_eq!(v("PdfTool.AppImage"), Some(None));
-        for other in [
-            "pdftool-0.3.0-linux-x86_64.AppImage.zsync",
-            "pdftool-0.3.0-linux-x86_64.deb",
-            "pdftool-0.3.0-windows-x64.AppImage",
-            "pdftool-cli-0.3.0-linux-x86_64.AppImage",
-            "phototool-0.6.0-linux-x86_64.AppImage",
-            "mypdftool.AppImage",
-            "pdftool-latest.AppImage",
-            ".appimage",
-            "x",
-        ] {
-            assert_eq!(v(other), None, "{other}");
-        }
-    }
-
-    #[cfg(target_os = "linux")]
-    #[test]
-    fn finds_appimages_in_every_folder_newest_first() {
-        let app = SuiteApp::by_id("phototool").unwrap();
-        let root = tempfile::tempdir().unwrap();
-        let (apps, gear, bin) = (root.path().join("Applications"), root.path().join("AppImages"), root.path().join("bin"));
-        for d in [&apps, &gear, &bin] {
-            std::fs::create_dir_all(d).unwrap();
-        }
-        std::fs::write(apps.join("phototool-0.5.0-linux-x86_64.AppImage"), b"").unwrap();
-        std::fs::write(apps.join("wordtool-0.3.0-linux-x86_64.AppImage"), b"").unwrap();
-        std::fs::write(gear.join("phototool.appimage"), b"").unwrap();
-        std::fs::write(bin.join("phototool-0.6.0-linux-x86_64.AppImage"), b"").unwrap();
-        std::fs::create_dir(bin.join("phototool.AppImage")).unwrap();
-        let found = linux::appimages_in(app, &[apps.clone(), gear.clone(), bin.clone(), root.path().join("missing")]);
-        let names: Vec<_> = found.iter().map(|(p, v)| (p.clone(), v.as_ref().map(ToString::to_string))).collect();
-        assert_eq!(
-            names,
-            [
-                (bin.join("phototool-0.6.0-linux-x86_64.AppImage"), Some("0.6.0".to_string())),
-                (apps.join("phototool-0.5.0-linux-x86_64.AppImage"), Some("0.5.0".to_string())),
-                (gear.join("phototool.appimage"), None),
-            ]
-        );
     }
 
     const LEARNING_MACHINES: &str = "Open3D";

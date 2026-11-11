@@ -6,8 +6,6 @@
 //! Shared by the launcher's installs and the apps' self-updates, so both keep a copy in the same
 //! context by the same rule.
 
-#![cfg_attr(not(windows), allow(dead_code))]
-
 /// The Windows Installer context a copy is installed in. A per-machine copy elevates and writes
 /// HKLM registrations; a per-user one must not silently become a second, per-machine copy (or the
 /// other way round).
@@ -75,15 +73,6 @@ pub fn single_scope(scopes: impl IntoIterator<Item = MsiScope>) -> Option<MsiSco
     let mut scopes = scopes.into_iter();
     let first = scopes.next()?;
     scopes.all(|scope| scope == first).then_some(first)
-}
-
-/// The context to install in. An update keeps `updated`, the context of the copy it replaces. A fresh
-/// install (no copy at all) is machine-wide, so every app lands in `C:\Program Files\Open3D\<App>`
-/// (or the folder the person chose) and not in one account's profile; a dual-scope package would
-/// otherwise take its own default, which is per-user. Windows asks for permission once, for that
-/// install. Anything else (a copy that is not an MSI) takes the package's own default.
-pub fn install_scope(updated: Option<MsiScope>, fresh: bool) -> Option<MsiScope> {
-    updated.or_else(|| fresh.then_some(MsiScope::PerMachine))
 }
 
 /// Whether `code` is a braced Windows Installer product GUID, the only text ever used to name a
@@ -330,22 +319,5 @@ mod tests {
     fn each_context_asks_the_package_for_itself() {
         assert_eq!(scope_arguments(MsiScope::PerMachine), ["ALLUSERS=1"]);
         assert_eq!(scope_arguments(MsiScope::PerUser), ["ALLUSERS=2", "MSIINSTALLPERUSER=1"]);
-    }
-
-    #[test]
-    fn a_fresh_install_is_machine_wide() {
-        assert_eq!(install_scope(None, true), Some(MsiScope::PerMachine));
-    }
-
-    #[test]
-    fn an_update_keeps_the_context_of_the_copy_it_replaces() {
-        for scope in [MsiScope::PerUser, MsiScope::PerMachine] {
-            assert_eq!(install_scope(Some(scope), false), Some(scope));
-        }
-    }
-
-    #[test]
-    fn a_copy_that_is_not_an_msi_takes_the_package_default() {
-        assert_eq!(install_scope(None, false), None);
     }
 }

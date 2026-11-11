@@ -108,8 +108,6 @@ pub fn max_running() -> bool {
         let out = crate::process::command("tasklist").args(["/FI", "IMAGENAME eq 3dsmax.exe", "/NH", "/FO", "CSV"]).output();
         out.is_ok_and(|o| String::from_utf8_lossy(&o.stdout).to_ascii_lowercase().contains("\"3dsmax.exe\""))
     }
-    #[cfg(not(windows))]
-    false
 }
 
 /// The error for anything that must wait until 3ds Max is closed.

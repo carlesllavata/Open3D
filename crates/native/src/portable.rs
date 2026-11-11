@@ -96,10 +96,6 @@ fn linked(meta: &std::fs::Metadata) -> bool {
         use std::os::windows::fs::MetadataExt;
         meta.file_attributes() & 0x400 != 0
     }
-    #[cfg(not(windows))]
-    {
-        meta.file_type().is_symlink()
-    }
 }
 
 struct Staging(PathBuf);
@@ -536,43 +532,6 @@ mod tests {
         }
         zip.finish().unwrap();
         path
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn host_symlinks_are_allowed_but_owned_links_are_rejected() {
-        use std::os::unix::fs::symlink;
-
-        let dir = tempfile::tempdir().unwrap();
-        let host = dir.path().join("var-home");
-        std::fs::create_dir(&host).unwrap();
-        let home = dir.path().join("home");
-        symlink(&host, &home).unwrap();
-        let root = home.join("phototool");
-        assert!(validate_directory(&root).is_ok());
-        assert!(validate_owned_directory(&root, &root).is_ok());
-
-        let app = SuiteApp::by_id("phototool").unwrap();
-        let paths = Paths::under(&home);
-        let zip = archive(dir.path(), "app.zip", &[("phototool.exe", b"program"), ("lib/runtime.dll", b"library")]);
-        let record = install(app, &zip, "0.5.0", None, &paths, Some(&home), false, &mut |_| Ok(())).unwrap();
-        assert_eq!(std::fs::read(&record.path).unwrap(), b"program");
-
-        std::fs::remove_file(root.join("lib/runtime.dll")).unwrap();
-        std::fs::remove_dir(root.join("lib")).unwrap();
-        symlink(&host, root.join("lib")).unwrap();
-        assert!(validate_owned_directory(&root, &root.join("lib/nested")).is_err());
-        assert!(remove(app, &record).is_err());
-        assert!(install(app, &zip, "0.6.0", Some(&record), &paths, None, false, &mut |_| Ok(())).is_err());
-        assert_eq!(std::fs::read(&record.path).unwrap(), b"program");
-
-        let linked_root = home.join("linked-app");
-        symlink(&root, &linked_root).unwrap();
-        assert!(validate_owned_directory(&linked_root, &linked_root).is_err());
-        assert!(validate_owned_directory(&root, &home).is_err());
-        let dangling = home.join("dangling");
-        symlink(home.join("missing"), &dangling).unwrap();
-        assert!(validate_directory(&dangling.join("nested")).is_err());
     }
 
     #[test]

@@ -25,11 +25,6 @@ fn local_app_data() -> Option<PathBuf> {
         .or_else(|| absolute_env("LOCALAPPDATA"))
 }
 
-#[cfg(not(windows))]
-fn local_app_data() -> Option<PathBuf> {
-    absolute_env("LOCALAPPDATA")
-}
-
 /// Where per-user data lives on this machine.
 pub fn data_local_dir() -> Option<PathBuf> {
     if cfg!(target_os = "windows") {

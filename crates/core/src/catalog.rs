@@ -150,10 +150,6 @@ const fn app(
 // The bundled suite, in website display order, then the approved community apps.
 include!(concat!(env!("OUT_DIR"), "/catalog.rs"));
 
-/// The Apple Developer team whose signature a macOS build must carry. Open3D is Windows only
-/// (3ds Max is), so there is none.
-pub const OPEN3D_TEAM_ID: &str = "";
-
 /// Open3D's home page: the launcher's public repository.
 pub const WEBSITE_URL: &str = "https://github.com/carlesllavata/Open3D";
 /// The GitHub account every official Open3D app's repository lives under. The release feed can
@@ -178,8 +174,6 @@ pub const LAUNCHER: SuiteApp = app(
     "carlesllavata/Open3D",
 );
 
-/// The launcher's own repo, checked so it can say when a newer launcher is out.
-pub const LAUNCHER_REPO: &str = "carlesllavata/Open3D";
 /// The launcher's own asset stem.
 pub const LAUNCHER_ID: &str = "open3d-launcher";
 

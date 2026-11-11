@@ -27,8 +27,6 @@
 //! to be over — its process waited out or its process id gone — never while it may still be
 //! installing.
 
-#![cfg_attr(not(windows), allow(dead_code))]
-
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::path::Path;

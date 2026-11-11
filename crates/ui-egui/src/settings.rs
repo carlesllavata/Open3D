@@ -215,20 +215,12 @@ impl Settings {
 
 /// Whether this process is running inside a Flatpak container sandbox.
 pub fn is_flatpak_sandbox() -> bool {
-    #[cfg(target_os = "linux")]
-    {
-        std::env::var_os("FLATPAK_ID").is_some() || std::path::Path::new("/.flatpak-info").exists()
-    }
     #[cfg(not(target_os = "linux"))]
     false
 }
 
 /// Whether this process was launched from an AppImage.
 pub fn is_appimage() -> bool {
-    #[cfg(target_os = "linux")]
-    {
-        std::env::var_os("APPIMAGE").is_some()
-    }
     #[cfg(not(target_os = "linux"))]
     false
 }

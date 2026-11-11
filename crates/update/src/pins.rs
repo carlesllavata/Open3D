@@ -27,10 +27,6 @@ use serde::{Deserialize, Serialize};
 /// app whose home it redirects (tarball installs on Linux), so the app still finds the real file.
 pub const PATH_ENV: &str = "CRAFT_VERSIONS_FILE";
 
-/// The line a Flatpak app's manifest adds to its `finish-args` so it can read the file. It names
-/// the folder [`Pins::default_path`] uses; the two change together or Flatpak apps lose the file.
-pub const FLATPAK_GRANT: &str = "--filesystem=xdg-data/Open3D/versions:ro";
-
 /// Which published build an app follows. A pinned version never changes on its own.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum VersionTrack {
@@ -90,11 +86,6 @@ impl Pins {
                 Self::default()
             }
         }
-    }
-
-    /// Reads the default file (see [`Self::default_path`]).
-    pub fn load_default() -> Self {
-        Self::default_path().map(|p| Self::load(&p)).unwrap_or_default()
     }
 
     /// Writes `path` in one step, so a reader never sees half a file.
@@ -218,21 +209,5 @@ mod tests {
         let text = std::fs::read_to_string(&path).unwrap();
         assert!(text.contains("Beta") && text.contains("v0.20.0"), "kept: {text}");
         assert_eq!(Pins::load(&path).choice("pdftool"), Choice::Unknown);
-    }
-
-    #[test]
-    fn the_default_file_sits_in_its_own_folder_outside_the_launchers() {
-        // The environment override is read by the same function; it is not set in tests.
-        if std::env::var_os(PATH_ENV).is_some() {
-            return;
-        }
-        if let Some(path) = Pins::default_path() {
-            assert!(path.is_absolute());
-            assert_eq!(path.file_name().and_then(|n| n.to_str()), Some("versions.json"));
-            // The folder is the one the Flatpak grant names, under the host's data folder.
-            let granted = FLATPAK_GRANT.strip_prefix("--filesystem=xdg-data/").and_then(|g| g.strip_suffix(":ro")).unwrap_or_default();
-            let expected = granted.split('/').fold(crate::folders::host_data_local_dir().unwrap_or_default(), |p, part| p.join(part));
-            assert_eq!(path.parent(), Some(expected.as_path()), "{FLATPAK_GRANT}");
-        }
     }
 }

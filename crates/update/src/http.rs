@@ -68,7 +68,7 @@ impl Http {
     pub fn new(user_agent: &str) -> Result<Self, String> {
         // Tests and a local mirror serve plain HTTP on loopback, which `get_api` and
         // `redirect_target` reach through the remote agents.
-        Self::build(user_agent, !(cfg!(feature = "local-mirror") || cfg!(test)))
+        Self::build(user_agent, !cfg!(test))
     }
 
     /// `https_only` keeps the agents for remote hosts, and every redirect they follow, on HTTPS:
@@ -143,19 +143,6 @@ impl Http {
             .build()
             .new_agent();
         Ok(Self { small, feed, no_redirect, download, direct, direct_download, token: None })
-    }
-
-    /// An optional token raises GitHub's limit from 60 to 5000 requests an hour. Only ever sent
-    /// to api.github.com. Blank means none.
-    ///
-    /// ureq's Debug logs list only an allow-list of safe headers and leave `Authorization` out,
-    /// but its Trace logs are the unredacted wire, this token's `Authorization: Bearer` among it:
-    /// an app that sets one should redact Bearer tokens in its logger, or keep `ureq` and
-    /// `ureq_proto` at Debug or quieter.
-    #[must_use]
-    pub fn with_github_token(mut self, token: Option<String>) -> Self {
-        self.token = token.map(|t| t.trim().to_string()).filter(|t| !t.is_empty());
-        self
     }
 
     /// GET a GitHub API resource, revalidating with `etag` when given.
@@ -489,11 +476,6 @@ fn matches_published(path: &Path, sha256: &str) -> bool {
     sha256_file(path).is_ok_and(|h| h.eq_ignore_ascii_case(sha256))
 }
 
-/// How much of a download is already on disk (a paused or interrupted one).
-pub fn partial_bytes(dest: &Path, size: u64) -> Option<u64> {
-    std::fs::metadata(part_path(dest, size)).ok().map(|m| m.len()).filter(|n| *n > 0)
-}
-
 /// Renames `from` to `to`, retrying for a few seconds while Windows reports the file busy: an
 /// antivirus scanner often holds a just-written installer open, and the rename then fails with
 /// "Access denied" (os error 5) or a sharing violation (os error 32). `stop` pauses or cancels
@@ -516,50 +498,6 @@ fn rename_retrying(from: &Path, to: &Path, stop: &Stop) -> Result<(), String> {
 /// Sets a file's modification time to now.
 fn touch(path: &Path) -> bool {
     std::fs::File::options().write(true).open(path).and_then(|f| f.set_modified(std::time::SystemTime::now())).is_ok()
-}
-
-/// Whether a finished download is waiting at `dest`. Judged by size alone: `download` checks it
-/// against the published checksum before anything uses it.
-pub fn finished(dest: &Path, size: u64) -> bool {
-    std::fs::metadata(dest).is_ok_and(|m| m.is_file() && m.len() == size)
-}
-
-/// Removes leftovers from the download folder: partial files in an old naming scheme, paused
-/// downloads untouched for `partial_max_age`, and finished ones (kept after a failed install)
-/// untouched for `finished_max_age` (they're for releases long since replaced, or given up on).
-/// Files written within the last minute are always kept, so a running download is never touched.
-pub fn clean_downloads(dir: &Path, partial_max_age: Duration, finished_max_age: Duration) {
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
-    let now = std::time::SystemTime::now();
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let Ok(meta) = entry.metadata() else { continue };
-        if !meta.is_file() {
-            continue;
-        }
-        let age = meta.modified().ok().and_then(|m| now.duration_since(m).ok()).unwrap_or_default();
-        if age < Duration::from_secs(60) {
-            continue;
-        }
-        let name = entry.file_name().to_string_lossy().into_owned();
-        // Current partial files are `<file>.<size>.part`.
-        let current_part = name
-            .strip_suffix(".part")
-            .and_then(|stem| stem.rsplit_once('.'))
-            .is_some_and(|(_, size)| !size.is_empty() && size.bytes().all(|b| b.is_ascii_digit()));
-        let legacy_part = name.ends_with(".part") && !current_part;
-        let max_age = if name.ends_with(".part") { partial_max_age } else { finished_max_age };
-        if legacy_part || age > max_age {
-            log::info!("removing stale download {}", path.display());
-            let _ = std::fs::remove_file(&path);
-        }
-    }
-}
-
-/// Throws away a paused download, and a finished one kept for another try at installing.
-pub fn discard(dest: &Path, size: u64) {
-    let _ = std::fs::remove_file(part_path(dest, size));
-    let _ = std::fs::remove_file(dest);
 }
 
 enum AttemptError {
@@ -674,9 +612,6 @@ fn read_bytes_capped(resp: &mut ureq::http::Response<ureq::Body>, max: usize) ->
 pub(crate) mod tests {
     use super::*;
 
-    const DAYS_30: Duration = Duration::from_secs(30 * 86_400);
-    const DAYS_7: Duration = Duration::from_secs(7 * 86_400);
-
     #[test]
     fn host_is_what_follows_the_scheme() {
         assert_eq!(host("https://api.github.com/repos/carlesllavata/wordtool"), "api.github.com");
@@ -684,60 +619,6 @@ pub(crate) mod tests {
         assert_eq!(host("not a url"), "not a url");
         assert_eq!(host("http://objects.example.com?X-Amz-Signature=abc"), "objects.example.com");
         assert_eq!(host("http://user:secret@example.com/x"), "example.com");
-    }
-
-    #[test]
-    fn cleaning_keeps_current_partial_files_and_removes_leftovers() {
-        let dir = tempfile::tempdir().unwrap();
-        let old = std::time::SystemTime::now() - Duration::from_secs(3600);
-        let make = |name: &str| {
-            let p = dir.path().join(name);
-            std::fs::write(&p, b"x").unwrap();
-            std::fs::File::options().write(true).open(&p).unwrap().set_modified(old).unwrap();
-            p
-        };
-        let keep = make("phototool-0.5.0-macos-universal.dmg.150000.part");
-        let legacy = make("phototool-0.5.0-macos-universal.part");
-        let finished = make("phototool-0.5.0-macos-universal.dmg");
-        let fresh = dir.path().join("x.part");
-        std::fs::write(&fresh, b"x").unwrap();
-        clean_downloads(dir.path(), DAYS_30, DAYS_7);
-        assert!(keep.exists() && fresh.exists() && finished.exists());
-        assert!(!legacy.exists());
-        // A finished file goes sooner than a paused one.
-        clean_downloads(dir.path(), DAYS_30, Duration::from_secs(60));
-        assert!(keep.exists() && !finished.exists());
-        clean_downloads(dir.path(), Duration::from_secs(60), DAYS_7);
-        assert!(!keep.exists());
-    }
-
-    #[test]
-    fn a_kept_file_that_still_matches_is_not_fetched_again() {
-        let (body, sha) = body();
-        let len = body.len() as u64;
-        let (url, requests) = serve(body.clone(), vec![Reply::Full, Reply::Full]);
-        let dir = tempfile::tempdir().unwrap();
-        let dest = dir.path().join("file.bin");
-        let http = Http::new(crate::TEST_AGENT).unwrap();
-        http.download(&url, &dest, len, &sha, &Stop::default(), &mut |_| {}).unwrap();
-        assert!(finished(&dest, len) && !finished(&dest, 0));
-        // Old enough to be cleaned up, were it not about to be used.
-        let old = std::time::SystemTime::now() - Duration::from_secs(40 * 86_400);
-        std::fs::File::options().write(true).open(&dest).unwrap().set_modified(old).unwrap();
-        let mut last = (0, 0);
-        let again = http.download(&url, &dest, len, &sha, &Stop::default(), &mut |t| {
-            if let Transfer::Bytes { done, total } = t {
-                last = (done, total);
-            }
-        });
-        assert_eq!(again, Ok(()));
-        assert_eq!(last, (len, len));
-        assert_eq!(requests.lock().unwrap().len(), 1);
-        // A cleanup while the installer runs leaves the reused file alone.
-        clean_downloads(dir.path(), DAYS_30, DAYS_7);
-        assert_eq!(std::fs::read(&dest).unwrap(), body);
-        discard(&dest, len);
-        assert!(!finished(&dest, len));
     }
 
     #[test]
@@ -911,69 +792,10 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn pausing_keeps_the_partial_file_and_resuming_continues_it() {
-        let (body, sha) = body();
-        let len = body.len() as u64;
-        let (url, ranges) = serve(body.clone(), vec![Reply::Full, Reply::Ranged]);
-        let dir = tempfile::tempdir().unwrap();
-        let dest = dir.path().join("file.bin");
-        let http = Http::new(crate::TEST_AGENT).unwrap();
-        let stop = Stop::default();
-        // Pause as soon as the first bytes arrive.
-        let err = http
-            .download(&url, &dest, len, &sha, &stop, &mut |t| {
-                if matches!(t, Transfer::Bytes { done, .. } if done > 0) {
-                    stop.pause();
-                }
-            })
-            .unwrap_err();
-        assert_eq!(err, PAUSED);
-        let kept = partial_bytes(&dest, len).unwrap();
-        assert!(kept > 0 && kept < len, "{kept}");
-        http.download(&url, &dest, len, &sha, &Stop::default(), &mut |_| {}).unwrap();
-        assert_eq!(std::fs::read(&dest).unwrap(), body);
-        assert_eq!(ranges.lock().unwrap()[1], Some(kept.to_string()));
-    }
-
-    #[test]
-    fn cancelling_throws_the_partial_file_away() {
-        let (body, sha) = body();
-        let len = body.len() as u64;
-        let (url, _) = serve(body, vec![Reply::Full]);
-        let dir = tempfile::tempdir().unwrap();
-        let dest = dir.path().join("file.bin");
-        let stop = Stop::default();
-        let err = Http::new(crate::TEST_AGENT)
-            .unwrap()
-            .download(&url, &dest, len, &sha, &stop, &mut |t| {
-                if matches!(t, Transfer::Bytes { done, .. } if done > 0) {
-                    stop.cancel();
-                }
-            })
-            .unwrap_err();
-        assert_eq!(err, CANCELLED);
-        assert_eq!(partial_bytes(&dest, len), None);
-    }
-
-    #[test]
     fn a_missing_file_fails_at_once() {
         let (result, ranges) = run(vec![Reply::Missing, Reply::Full]);
         assert!(result.unwrap_err().contains("no longer"));
         assert_eq!(ranges.len(), 1);
-    }
-
-    #[test]
-    fn a_partial_file_from_an_earlier_run_is_continued() {
-        let (body, sha) = body();
-        let (url, ranges) = serve(body.clone(), vec![Reply::Ranged]);
-        let dir = tempfile::tempdir().unwrap();
-        let dest = dir.path().join("file.bin");
-        std::fs::write(part_path(&dest, body.len() as u64), &body[..500_000]).unwrap();
-        assert_eq!(partial_bytes(&dest, body.len() as u64), Some(500_000));
-        Http::new(crate::TEST_AGENT).unwrap().download(&url, &dest, body.len() as u64, &sha, &Stop::default(), &mut |_| {}).unwrap();
-        assert_eq!(std::fs::read(&dest).unwrap(), body);
-        assert_eq!(*ranges.lock().unwrap(), [Some("500000".to_string())]);
-        assert!(!part_path(&dest, body.len() as u64).exists());
     }
 
     #[test]
@@ -995,8 +817,6 @@ pub(crate) mod tests {
         let part = part_path(&dir.path().join("file.bin"), 1);
         // A directory cannot be removed as a file on Unix. On Windows, hold a file open
         // without delete sharing: metadata remains readable, but removing it is refused.
-        #[cfg(unix)]
-        std::fs::create_dir(&part).unwrap();
         #[cfg(windows)]
         let _locked_partial = {
             use std::os::windows::fs::OpenOptionsExt;
@@ -1073,25 +893,6 @@ pub(crate) mod tests {
         let mut enc = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
         enc.write_all(data).unwrap();
         enc.finish().unwrap()
-    }
-
-    /// Live: a real Open3D app release asset (`cargo test -p open3d-launcher-native -- --ignored`).
-    #[test]
-    #[ignore = "needs network access"]
-    fn downloads_a_real_release_asset() {
-        let http = Http::new(crate::TEST_AGENT).unwrap();
-        let Fetched::Body { text, .. } = http.get_api("https://api.github.com/repos/carlesllavata/wordtool/releases/latest", None).unwrap() else {
-            panic!("no release")
-        };
-        let release = crate::release::parse_github_release(&text, "carlesllavata/wordtool").unwrap();
-        let sums_url = &release.sums_asset().unwrap().url;
-        let sums = crate::release::parse_sha256sums(&http.get_text(sums_url).unwrap().unwrap());
-        let asset = release.assets.iter().find(|a| a.name.ends_with("freebsd-x86_64.tar.gz")).unwrap();
-        let sha = asset.sha256.clone().or_else(|| sums.iter().find(|(_, n)| *n == asset.name).map(|(h, _)| h.clone())).unwrap();
-        let dir = tempfile::tempdir().unwrap();
-        let dest = dir.path().join(&asset.name);
-        http.download(&asset.url, &dest, asset.size, &sha, &Stop::default(), &mut |_| {}).unwrap();
-        assert_eq!(std::fs::metadata(&dest).unwrap().len(), asset.size);
     }
 
     /// Answers one request with `head` (status line and headers) and an empty body.

@@ -965,8 +965,6 @@ pub(crate) mod tests {
         let part = part_path(&dir.path().join("file.bin"), 1);
         // A directory cannot be removed as a file on Unix. On Windows, hold a file open
         // without delete sharing: metadata remains readable, but removing it is refused.
-        #[cfg(unix)]
-        std::fs::create_dir(&part).unwrap();
         #[cfg(windows)]
         let _locked_partial = {
             use std::os::windows::fs::OpenOptionsExt;

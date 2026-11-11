@@ -373,19 +373,6 @@ fn load_cjk(lang: Lang) -> Option<Arc<FontData>> {
 static CJK_FONTS: std::sync::Mutex<std::collections::BTreeMap<&str, Option<Arc<FontData>>>> =
     std::sync::Mutex::new(std::collections::BTreeMap::new());
 
-/// Has the system font for `lang` already been loaded? Never loads it.
-pub fn cjk_font_loaded(lang: Lang) -> bool {
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        CJK_FONTS.lock().unwrap_or_else(std::sync::PoisonError::into_inner).get(lang.code()).is_some_and(Option::is_some)
-    }
-    #[cfg(target_arch = "wasm32")]
-    {
-        let _ = lang;
-        false
-    }
-}
-
 /// Can the CJK language `lang` be drawn? Loads the system font on the first call ([`cjk_font`]).
 pub fn cjk_font_available(lang: Lang) -> bool {
     cjk_font(lang).is_some()

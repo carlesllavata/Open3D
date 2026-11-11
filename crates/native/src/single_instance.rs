@@ -97,12 +97,6 @@ fn fresh_secret() -> Option<String> {
 /// Writes `bytes` to `path` readable and writable only by the owner.
 fn write_private(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
     use std::io::Write;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        let mut f = std::fs::OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(path)?;
-        f.write_all(bytes)
-    }
     #[cfg(not(unix))]
     {
         // On Windows the per-user profile directory is already access-controlled to the user.

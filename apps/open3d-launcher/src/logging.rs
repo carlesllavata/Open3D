@@ -55,8 +55,6 @@ fn create_private(path: &Path) -> std::io::Result<File> {
     let mut options = std::fs::OpenOptions::new();
     // The mode only applies to a new file, so never open one that's already there.
     options.write(true).create_new(true);
-    #[cfg(unix)]
-    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
     options.open(path)
 }
 
@@ -300,16 +298,6 @@ mod tests {
         assert_eq!(read(&dir.join("open3d-launcher.1.log")), "run 3");
         assert_eq!(read(&dir.join("open3d-launcher.2.log")), "run 2");
         assert!(!dir.join("open3d-launcher.3.log").exists(), "only {KEEP} old logs are kept");
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn only_the_user_can_read_the_log() {
-        use std::os::unix::fs::PermissionsExt;
-        let dir = temp_dir("private");
-        let (path, _file) = rotate(&dir).unwrap();
-        assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

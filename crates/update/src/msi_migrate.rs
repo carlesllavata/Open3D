@@ -17,8 +17,6 @@
 //! inside the profile keeps updating for the account, since program files for everyone must not
 //! live in one person's profile. The launcher's own package never moves.
 
-#![cfg_attr(not(windows), allow(dead_code))]
-
 use std::path::{Path, PathBuf};
 
 use crate::msi_context::{MsiScope, scope_arguments};

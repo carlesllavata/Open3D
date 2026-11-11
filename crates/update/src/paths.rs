@@ -16,15 +16,6 @@ pub struct Paths {
 }
 
 impl Paths {
-    /// Discovers paths for an app, respecting portable mode if `portable.txt` is next to current exe.
-    pub fn for_app(app: &App) -> Result<Self, String> {
-        if let Ok(exe) = std::env::current_exe() {
-            return Self::for_exe(app, &exe);
-        }
-        let dir = if cfg!(any(target_os = "macos", target_os = "windows")) { app.name } else { app.id };
-        Self::per_user(dir)
-    }
-
     /// Discovers paths for an app from a specific executable path.
     pub fn for_exe(app: &App, exe: &Path) -> Result<Self, String> {
         if let Some(parent) = exe.parent()
@@ -62,15 +53,6 @@ impl Paths {
     /// Where tarball installs (FreeBSD, Linux without AppImage) are unpacked: `<data>/apps/<app>`.
     pub fn apps(&self) -> PathBuf {
         self.data.join("apps")
-    }
-
-    /// The folder an app unpacked in [`Self::apps`] sees as its home: `<data>/apps/<app>/home`.
-    /// A Open3D app keeps its settings in the XDG folders (`~/.config`, `~/.local/share`,
-    /// `~/.cache`), so pointing `HOME` and those variables here keeps every app's configuration
-    /// beside it, inside the folder the installer owns.
-    #[cfg(target_os = "linux")]
-    pub fn app_home(&self, id: &str) -> PathBuf {
-        self.apps().join(id).join("home")
     }
 }
 
@@ -115,18 +97,5 @@ mod tests {
         assert!(write_atomic(&blocked, b"replacement").is_err());
         assert_eq!(std::fs::read(blocked.join("keep.txt")).unwrap(), b"keep");
         assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 2);
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn atomic_write_does_not_follow_a_temporary_file_symlink() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("installed.json");
-        let victim = dir.path().join("unrelated.txt");
-        std::fs::write(&victim, b"keep this file").unwrap();
-        std::os::unix::fs::symlink(&victim, path.with_extension("tmp")).unwrap();
-        write_atomic(&path, b"new manifest").unwrap();
-        assert_eq!(std::fs::read(&victim).unwrap(), b"keep this file");
-        assert_eq!(std::fs::read(&path).unwrap(), b"new manifest");
     }
 }

@@ -185,13 +185,6 @@ const MISANS_FILES: [&str; 3] = ["MiSans-Regular.ttf", "MiSans-Normal.ttf", "MiS
 /// system-wide ones, each as the font managers lay them out.
 fn user_font_dirs() -> Vec<PathBuf> {
     let mut dirs = Vec::new();
-    #[cfg(target_os = "macos")]
-    {
-        if let Some(home) = std::env::var_os("HOME") {
-            dirs.push(PathBuf::from(home).join("Library/Fonts"));
-        }
-        dirs.push("/Library/Fonts".into());
-    }
     #[cfg(target_os = "windows")]
     {
         // Fonts installed "for me" (the default since Windows 10 1809) go under the user's profile.
@@ -201,23 +194,6 @@ fn user_font_dirs() -> Vec<PathBuf> {
         let root = std::env::var_os("SystemRoot").map_or_else(|| PathBuf::from(r"C:\Windows"), PathBuf::from);
         dirs.push(root.join("Fonts"));
     }
-    #[cfg(all(unix, not(target_os = "macos")))]
-    {
-        if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
-            for sub in [".local/share/fonts", ".local/share/fonts/MiSans", ".local/share/fonts/misans", ".fonts"] {
-                dirs.push(home.join(sub));
-            }
-        }
-        for dir in [
-            "/usr/share/fonts/MiSans",
-            "/usr/share/fonts/misans",
-            "/usr/share/fonts/truetype/misans",
-            "/usr/share/fonts/TTF",
-            "/usr/local/share/fonts/MiSans",
-        ] {
-            dirs.push(dir.into());
-        }
-    }
     dirs
 }
 
@@ -225,52 +201,11 @@ fn user_font_dirs() -> Vec<PathBuf> {
 fn chinese_candidates() -> Vec<Candidate> {
     let mut out = Vec::new();
     let mut add = |path: PathBuf, family: &'static str| out.push(Candidate { path, family });
-    #[cfg(target_os = "macos")]
-    {
-        // PingFang moved from the system fonts into a downloaded asset in later macOS versions.
-        add("/System/Library/Fonts/PingFang.ttc".into(), "PingFang SC");
-        for path in mac_font_assets("PingFang.ttc") {
-            add(path, "PingFang SC");
-        }
-        add("/System/Library/Fonts/Hiragino Sans GB.ttc".into(), "Hiragino Sans GB W3");
-        add("/System/Library/Fonts/STHeiti Medium.ttc".into(), "Heiti SC");
-    }
     #[cfg(target_os = "windows")]
     {
         let root = std::env::var_os("SystemRoot").map_or_else(|| PathBuf::from(r"C:\Windows"), PathBuf::from);
         add(root.join("Fonts").join("msyh.ttc"), "Microsoft YaHei");
         add(root.join("Fonts").join("simsun.ttc"), "SimSun");
-    }
-    #[cfg(all(unix, not(target_os = "macos")))]
-    {
-        // Debian/Ubuntu, Arch, Fedora (static and variable) and FreeBSD's ports.
-        const NOTO_DIRS: [&str; 8] = [
-            "/usr/share/fonts/opentype/noto",
-            "/usr/share/fonts/noto-cjk",
-            "/usr/share/fonts/google-noto-cjk",
-            "/usr/share/fonts/google-noto-sans-cjk-fonts",
-            "/usr/share/fonts/google-noto-sans-cjk-vf-fonts",
-            "/usr/share/fonts/noto",
-            "/usr/local/share/fonts/noto",
-            "/usr/local/share/fonts/noto-cjk",
-        ];
-        for file in ["NotoSansCJK-Regular.ttc", "NotoSansCJKsc-Regular.otf", "NotoSansCJK-VF.ttc"] {
-            for dir in NOTO_DIRS {
-                add(Path::new(dir).join(file), "Noto Sans CJK SC");
-            }
-        }
-        const WQY_DIRS: [&str; 5] = [
-            "/usr/share/fonts/truetype/wqy",
-            "/usr/share/fonts/wenquanyi/wqy-microhei",
-            "/usr/share/fonts/wqy-microhei",
-            "/usr/share/fonts/wqy-zenhei",
-            "/usr/local/share/fonts/wqy",
-        ];
-        for (file, family) in [("wqy-microhei.ttc", "WenQuanYi Micro Hei"), ("wqy-zenhei.ttc", "WenQuanYi Zen Hei")] {
-            for dir in WQY_DIRS {
-                add(Path::new(dir).join(file), family);
-            }
-        }
     }
     // Last, a MiSans the user installed themselves, on any system (#378).
     for file in MISANS_FILES {
@@ -311,36 +246,6 @@ fn traditional_chinese_candidates() -> Vec<Candidate> {
             add(dir.join(file), family);
         }
     }
-    #[cfg(all(unix, not(target_os = "macos")))]
-    {
-        // Debian/Ubuntu, Arch, Fedora (static and variable), openSUSE and FreeBSD's ports.
-        const NOTO_DIRS: [&str; 10] = [
-            "/usr/share/fonts/opentype/noto",
-            "/usr/share/fonts/noto-cjk",
-            "/usr/share/fonts/google-noto-cjk",
-            "/usr/share/fonts/google-noto-sans-cjk-fonts",
-            "/usr/share/fonts/google-noto-sans-cjk-vf-fonts",
-            "/usr/share/fonts/noto",
-            "/usr/share/fonts/truetype/noto",
-            "/usr/share/fonts/truetype",
-            "/usr/local/share/fonts/noto",
-            "/usr/local/share/fonts/noto-cjk",
-        ];
-        for dir in NOTO_DIRS {
-            for (file, family) in NOTO_TC_FILES {
-                add(Path::new(dir).join(file), family);
-            }
-        }
-    }
-    #[cfg(target_os = "macos")]
-    {
-        // PingFang moved from the system fonts into a downloaded asset in later macOS versions.
-        add("/System/Library/Fonts/PingFang.ttc".into(), "PingFang TC");
-        for path in mac_font_assets("PingFang.ttc") {
-            add(path, "PingFang TC");
-        }
-        add("/System/Library/Fonts/STHeiti Medium.ttc".into(), "Heiti TC");
-    }
     #[cfg(target_os = "windows")]
     {
         let root = std::env::var_os("SystemRoot").map_or_else(|| PathBuf::from(r"C:\Windows"), PathBuf::from);
@@ -354,73 +259,12 @@ fn traditional_chinese_candidates() -> Vec<Candidate> {
 fn japanese_candidates() -> Vec<Candidate> {
     let mut out = Vec::new();
     let mut add = |path: PathBuf, family: &'static str| out.push(Candidate { path, family });
-    #[cfg(target_os = "macos")]
-    {
-        // Hiragino Sans (its file keeps the Japanese name); it may be a downloaded font asset.
-        for file in ["ヒラギノ角ゴシック W3.ttc", "ヒラギノ角ゴシック W4.ttc", "ヒラギノ角ゴシック W6.ttc"] {
-            add(Path::new("/System/Library/Fonts").join(file), "Hiragino Sans");
-            for path in mac_font_assets(file) {
-                add(path, "Hiragino Sans");
-            }
-        }
-        add("/System/Library/Fonts/ヒラギノ丸ゴ ProN W4.ttc".into(), "Hiragino Maru Gothic ProN");
-    }
     #[cfg(target_os = "windows")]
     {
         let root = std::env::var_os("SystemRoot").map_or_else(|| PathBuf::from(r"C:\Windows"), PathBuf::from);
         add(root.join("Fonts").join("YuGothR.ttc"), "Yu Gothic");
         add(root.join("Fonts").join("meiryo.ttc"), "Meiryo");
         add(root.join("Fonts").join("msgothic.ttc"), "MS Gothic");
-    }
-    #[cfg(all(unix, not(target_os = "macos")))]
-    {
-        // Debian/Ubuntu, Arch, Fedora (static and variable) and FreeBSD's ports.
-        const NOTO_DIRS: [&str; 8] = [
-            "/usr/share/fonts/opentype/noto",
-            "/usr/share/fonts/noto-cjk",
-            "/usr/share/fonts/google-noto-cjk",
-            "/usr/share/fonts/google-noto-sans-cjk-fonts",
-            "/usr/share/fonts/google-noto-sans-cjk-vf-fonts",
-            "/usr/share/fonts/noto",
-            "/usr/local/share/fonts/noto",
-            "/usr/local/share/fonts/noto-cjk",
-        ];
-        for file in ["NotoSansCJK-Regular.ttc", "NotoSansCJKjp-Regular.otf", "NotoSansCJK-VF.ttc"] {
-            for dir in NOTO_DIRS {
-                add(Path::new(dir).join(file), "Noto Sans CJK JP");
-            }
-        }
-        // Standalone Noto Sans JP, and the classic Japanese faces (ipafont-gothic, Takao, VL).
-        const JP_DIRS: [&str; 8] = [
-            "/usr/share/fonts/opentype/noto",
-            "/usr/share/fonts/truetype/noto",
-            "/usr/share/fonts/noto",
-            "/usr/share/fonts/truetype/ipafont-gothic",
-            "/usr/share/fonts/truetype/ipafont",
-            "/usr/share/fonts/truetype/takao-gothic",
-            "/usr/share/fonts/truetype/vlgothic",
-            "/usr/local/share/fonts",
-        ];
-        for file in ["NotoSansJP-Regular.otf", "NotoSansJP-VF.ttf"] {
-            for dir in JP_DIRS {
-                add(Path::new(dir).join(file), "Noto Sans JP");
-            }
-        }
-        for (file, family) in [("ipag.ttf", "IPAGothic"), ("ipagp.ttf", "IPAPGothic")] {
-            for dir in JP_DIRS {
-                add(Path::new(dir).join(file), family);
-            }
-        }
-        for (file, family) in [("TakaoGothic.ttf", "TakaoGothic"), ("TakaoPGothic.ttf", "TakaoPGothic")] {
-            for dir in JP_DIRS {
-                add(Path::new(dir).join(file), family);
-            }
-        }
-        for (file, family) in [("VL-Gothic-Regular.ttf", "VL Gothic"), ("VL-PGothic-Regular.ttf", "VL PGothic")] {
-            for dir in JP_DIRS {
-                add(Path::new(dir).join(file), family);
-            }
-        }
     }
     out
 }
@@ -430,70 +274,11 @@ fn japanese_candidates() -> Vec<Candidate> {
 fn georgian_candidates() -> Vec<Candidate> {
     let mut out = Vec::new();
     let mut add = |path: PathBuf, family: &'static str| out.push(Candidate { path, family });
-    #[cfg(target_os = "macos")]
-    {
-        // SF Georgian is the system UI face for Georgian; its family name starts with a dot, as
-        // macOS's hidden UI faces do.
-        add("/System/Library/Fonts/SFGeorgian.ttf".into(), ".SF Georgian");
-        add("/System/Library/Fonts/Supplemental/Arial Unicode.ttf".into(), "Arial Unicode MS");
-        add("/Library/Fonts/Arial Unicode.ttf".into(), "Arial Unicode MS");
-    }
     #[cfg(target_os = "windows")]
     {
         let root = std::env::var_os("SystemRoot").map_or_else(|| PathBuf::from(r"C:\Windows"), PathBuf::from);
         add(root.join("Fonts").join("sylfaen.ttf"), "Sylfaen");
     }
-    #[cfg(all(unix, not(target_os = "macos")))]
-    {
-        // Debian/Ubuntu, Arch, Fedora (static and variable), openSUSE and FreeBSD's ports.
-        for path in [
-            "/usr/share/fonts/truetype/noto/NotoSansGeorgian-Regular.ttf",
-            "/usr/share/fonts/truetype/NotoSansGeorgian-Regular.ttf",
-            "/usr/share/fonts/noto/NotoSansGeorgian-Regular.ttf",
-            "/usr/share/fonts/google-noto/NotoSansGeorgian-Regular.ttf",
-            "/usr/share/fonts/google-noto-vf/NotoSansGeorgian[wght].ttf",
-            "/usr/local/share/fonts/noto/NotoSansGeorgian-Regular.ttf",
-        ] {
-            add(path.into(), "Noto Sans Georgian");
-        }
-        // A face the user installed by hand.
-        for dir in user_font_dirs() {
-            add(dir.join("NotoSansGeorgian-Regular.ttf"), "Noto Sans Georgian");
-        }
-        // DejaVu Sans draws Georgian too, and most desktops have it.
-        for path in [
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            "/usr/share/fonts/TTF/DejaVuSans.ttf",
-            "/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf",
-            "/usr/share/fonts/dejavu/DejaVuSans.ttf",
-            "/usr/local/share/fonts/dejavu/DejaVuSans.ttf",
-        ] {
-            add(path.into(), "DejaVu Sans");
-        }
-    }
-    out
-}
-
-/// `file` in macOS's downloaded font assets:
-/// `/System/Library/AssetsV2/com_apple_MobileAsset_Font*/*.asset/AssetData/<file>`.
-#[cfg(target_os = "macos")]
-fn mac_font_assets(file: &str) -> Vec<PathBuf> {
-    let dirs = |path: &Path| -> Vec<PathBuf> {
-        std::fs::read_dir(path).map(|entries| entries.filter_map(Result::ok).map(|e| e.path()).collect()).unwrap_or_default()
-    };
-    let mut out = Vec::new();
-    for catalog in dirs(Path::new("/System/Library/AssetsV2")) {
-        if !catalog.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("com_apple_MobileAsset_Font")) {
-            continue;
-        }
-        for asset in dirs(&catalog) {
-            let path = asset.join("AssetData").join(file);
-            if asset.extension().is_some_and(|e| e == "asset") && path.is_file() {
-                out.push(path);
-            }
-        }
-    }
-    out.sort();
     out
 }
 
@@ -601,15 +386,6 @@ mod tests {
         }
     }
 
-    /// openSUSE's `google-noto-sans-tc-fonts` installs the variable CJK TC font directly in
-    /// `/usr/share/fonts/truetype`.
-    #[cfg(target_os = "linux")]
-    #[test]
-    fn traditional_chinese_searches_the_opensuse_font_dir() {
-        let found = traditional_chinese_candidates();
-        assert!(found.iter().any(|c| c.path == Path::new("/usr/share/fonts/truetype/NotoSansCJKtc-VF.otf") && c.family == "Noto Sans CJK TC"));
-    }
-
     /// The `NotoSansCJKtc` override folder is read before the older file at the font folder's root.
     #[test]
     fn the_tc_override_folder_comes_before_the_root_file() {
@@ -620,29 +396,6 @@ mod tests {
         let override_at = found.iter().position(|c| c.path == override_file).expect("the override path");
         let root_at = found.iter().position(|c| c.path == root_file).expect("the root path");
         assert!(override_at < root_at);
-    }
-
-    /// Inside Flatpak the host's fonts are under `/run/host` (#620), each right after its own path.
-    #[cfg(target_os = "linux")]
-    #[test]
-    fn flatpak_host_fonts_follow_the_paths_they_mirror() {
-        for (path, host) in [
-            ("/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc", Some("/run/host/fonts/noto-cjk/NotoSansCJK-Regular.ttc")),
-            ("/usr/local/share/fonts/noto/NotoSansCJK-Regular.ttc", Some("/run/host/local-fonts/noto/NotoSansCJK-Regular.ttc")),
-            ("/home/u/.local/share/fonts/MiSans-Regular.ttf", None),
-            ("/usr/share/fontsx/a.ttf", None),
-            ("/run/host/fonts/a.ttf", None),
-        ] {
-            assert_eq!(flatpak_host_path(Path::new(path)), host.map(PathBuf::from), "{path}");
-        }
-        for (script, family) in
-            [(Script::Chinese, "Noto Sans CJK SC"), (Script::TraditionalChinese, "Noto Sans CJK TC"), (Script::Japanese, "Noto Sans CJK JP")]
-        {
-            let found = candidates(script);
-            let at = found.iter().position(|c| c.path == Path::new("/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc")).unwrap();
-            assert_eq!(found[at + 1].path, Path::new("/run/host/fonts/noto-cjk/NotoSansCJK-Regular.ttc"));
-            assert_eq!(found[at + 1].family, family);
-        }
     }
 
     #[test]

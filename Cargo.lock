@@ -733,15 +733,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "chrono"
-version = "0.4.45"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1aa79e62e7697b8e29b513a68abacf485adcd1fe8284a4316c5ae868e6633327"
-dependencies = [
- "num-traits",
-]
-
-[[package]]
 name = "clipboard-win"
 version = "5.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -942,21 +933,13 @@ dependencies = [
 name = "craft-update"
 version = "0.2.0"
 dependencies = [
- "chrono",
  "dunce",
- "egui",
- "egui_kittest",
- "epaint_default_fonts",
  "flate2",
- "getrandom 0.3.4",
- "image",
  "log",
- "plist",
  "semver",
  "serde",
  "serde_json",
  "sha2",
- "tar",
  "tempfile",
  "ureq",
  "verifysign",

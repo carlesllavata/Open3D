@@ -31,20 +31,3 @@ fn the_version_is_printed_with_arguments_the_desktop_adds() {
         }
     }
 }
-
-/// `std::env::args` panics on an argument that is not UTF-8, which a Latin-1 file name on Linux
-/// or macOS is, and the panic came before the flags were looked at: every start-up with such an
-/// argument ended in `internal error: panicked at library/std/src/env.rs` and exit 101, the
-/// launcher's own panic report.
-#[cfg(unix)]
-#[test]
-fn an_argument_that_is_not_utf8_is_ignored_like_any_other() {
-    use std::ffi::OsStr;
-    use std::os::unix::ffi::OsStrExt;
-
-    let out = launcher().arg(OsStr::from_bytes(b"/tmp/caf\xe9.png")).arg("--version").output().unwrap();
-    let err = String::from_utf8_lossy(&out.stderr);
-    assert_eq!(out.status.code(), Some(0), "an ignored argument, not a panic (101): {err}");
-    assert_eq!(String::from_utf8_lossy(&out.stdout), VERSION_LINE);
-    assert!(!err.contains("panicked"), "{err}");
-}

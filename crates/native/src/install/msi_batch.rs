@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Helpers for Windows Installer PowerShell scripts running under elevation.
 
-#![cfg_attr(not(windows), allow(dead_code))]
-
 use std::path::Path;
 
 use super::MsiScope;

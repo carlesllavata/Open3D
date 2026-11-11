@@ -77,12 +77,7 @@ pub struct Installed {
     pub installation: Option<String>,
 }
 
-impl Installed {
-    /// Whether this copy is managed externally and should not be replaced by a downloaded bundle.
-    pub fn is_externally_managed(&self) -> bool {
-        self.externally_managed
-    }
-}
+impl Installed {}
 
 /// The status shown on an app's card or row.
 #[derive(Clone, Debug, PartialEq, Eq)]

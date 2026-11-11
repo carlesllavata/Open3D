@@ -20,8 +20,6 @@
 //! default folder) and updated exactly as before, with the package's own default context. An app
 //! copy in that kind of folder is judged by its registration first ([`classify`]).
 
-#![cfg_attr(not(windows), allow(dead_code))]
-
 use std::path::{Path, PathBuf};
 
 use crate::msi_context::MsiScope;

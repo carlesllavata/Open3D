@@ -348,10 +348,9 @@ impl NativeBackend {
             // Leftovers from interrupted installs or older versions of the launcher. A paused
             // download stays a month; a finished one kept after a failed install, a week.
             http::clean_downloads(&paths.downloads(), Duration::from_secs(30 * 86_400), Duration::from_secs(7 * 86_400));
-            let snapshot = crate::detect::Snapshot::take();
             let manifest = shared.manifest.lock().unwrap_or_else(PoisonError::into_inner).clone();
             for app in open3d_launcher_core::hosted_catalog::apps().iter().filter(|a| platform.is_none_or(|p| a.runs_on(p.os))) {
-                let found = crate::detect::detect(app, &manifest, &snapshot);
+                let found = crate::detect::detect(app, &manifest);
                 publish_detected(app, found, &shared, platform);
             }
             // Downloads paused (or cut off by quitting) in an earlier run.
@@ -512,7 +511,7 @@ impl NativeBackend {
             };
             // Look again: the result is whatever is on disk now.
             let manifest = shared.manifest.lock().unwrap_or_else(PoisonError::into_inner).clone();
-            let found = crate::detect::detect(app, &manifest, &crate::detect::Snapshot::take());
+            let found = crate::detect::detect(app, &manifest);
             // One installer call can cover several apps, and fail after some of them went in.
             let latest = shared.latest.lock().unwrap_or_else(PoisonError::into_inner).get(app.id).cloned();
             let result = match (result, latest) {
@@ -551,8 +550,6 @@ impl NativeBackend {
         drop(running);
         #[cfg(any(target_os = "linux", windows))]
         let batch = (!ids.is_empty()).then(|| install::INSTALLER.gather(ids.len()));
-        #[cfg(not(any(target_os = "linux", windows)))]
-        let batch = None;
         let mut started = 0;
         for id in &ids {
             if self.start_job(id, Work::Install(batch.clone())) {
@@ -774,26 +771,6 @@ fn run_install(
     let mut batch = install::BatchPlace(batch);
     if let Some(update) = repository_update(app, existing, options) {
         let inst = update?;
-        #[cfg(target_os = "linux")]
-        {
-            shared.emit(Event::Progress { app: app.id.to_string(), phase: JobPhase::Installing });
-            let mut phase = |p| shared.emit(Event::Progress { app: app.id.to_string(), phase: p });
-            let default_id = app.bundle_id();
-            let target_id = inst.package.as_deref().unwrap_or(&default_id);
-            let scope = crate::packages::flatpak_scope(inst.installation.as_deref());
-            let deployed_commit = || {
-                crate::process::capture_flatpak(&["info", &scope, "--show-commit", target_id], std::time::Duration::from_secs(15))
-                    .filter(|value| !value.trim().is_empty())
-            };
-            let before = deployed_commit();
-            install::linux::update_flatpak_app(app, target_id, inst.installation.as_deref(), inst.origin.as_deref(), stop, &mut phase)?;
-            let after = deployed_commit();
-            return Ok(match (before, after) {
-                (Some(before), Some(after)) if before.trim() == after.trim() => format!("{} is already up to date", app.name),
-                (Some(_), Some(_)) => format!("{} was updated through its Flatpak repository", app.name),
-                _ => format!("Flatpak finished checking {} for updates", app.name),
-            });
-        }
         #[cfg(not(target_os = "linux"))]
         {
             let _ = inst;
@@ -1896,39 +1873,6 @@ mod tests {
             .map(|name| Asset { url: format!("https://example.invalid/{name}"), name, size: 3, sha256: None })
             .collect();
         Release { assets, ..Release::default() }
-    }
-
-    #[cfg(target_os = "linux")]
-    #[test]
-    fn a_custom_linux_folder_requires_appimage_without_package_fallback() {
-        if process::in_sandbox() {
-            return;
-        }
-        let app = SuiteApp::by_id(APP).unwrap();
-        let platform = Platform { os: Os::Linux, arch: Arch::X64 };
-        let options = BackendOptions {
-            kinds: vec![PackageKind::Deb],
-            install_locations: open3d_launcher_core::protocol::InstallLocations { root: Some("/custom/apps".into()), ..Default::default() },
-            ..Default::default()
-        };
-        let mut release = release("0.5.0");
-        assert_eq!(planned_asset(app, &release, platform, &options, None, None).unwrap().1, PackageKind::AppImage);
-        release.assets.retain(|a| !a.name.ends_with(".AppImage"));
-        assert!(planned_asset(app, &release, platform, &options, None, None).is_none());
-        let existing = Installed {
-            version: None,
-            source: open3d_launcher_core::InstallSource::Deb,
-            location: "/usr/bin/phototool".into(),
-            package: None,
-            externally_managed: false,
-            origin: None,
-            installation: None,
-        };
-        let system = BackendOptions { kinds: options.kinds.clone(), ..Default::default() };
-        assert_eq!(
-            planned_asset(app, &release, platform, &options, Some(&existing), None),
-            planned_asset(app, &release, platform, &system, Some(&existing), None)
-        );
     }
 
     /// A backend that knows `release("0.5.0")` and keeps its files under `root`.

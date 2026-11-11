@@ -24,8 +24,6 @@
 //! A per-user copy needs no permission, so its steps run one after another ([`run`]), all in one
 //! turn of the installer queue: once the copy is removed, nothing queued can stop the put-back.
 
-#![cfg_attr(not(windows), allow(dead_code))]
-
 use open3d_launcher_core::protocol::CANCELLED;
 
 use super::msi_batch::{self, DECLINED, LAUNCH_FAILED};

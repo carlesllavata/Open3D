@@ -6,15 +6,9 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
-#[cfg(target_os = "macos")]
-mod hiding;
 mod logging;
 mod motion;
 mod settings_file;
-#[cfg(target_os = "macos")]
-mod spaces;
-#[cfg(target_os = "linux")]
-mod system_theme;
 mod tray;
 
 use std::path::{Path, PathBuf};
@@ -116,17 +110,10 @@ fn main() -> ExitCode {
     }
 
     // The desktop's animation setting comes over D-Bus: ask now, so the answer is in by the first frame.
-    #[cfg(all(unix, not(target_os = "macos")))]
-    let _ = motion::reduced();
 
     let backend_waker = waker.clone();
     let settings_path = settings_file::path(APP_ID);
     let mut launcher = Launcher::new(Box::new(NativeBackend::new(move || backend_waker.wake())), starts, settings_path.clone());
-    #[cfg(target_os = "linux")]
-    {
-        let theme_waker = waker.clone();
-        launcher.system_theme = system_theme::Monitor::start(move || theme_waker.wake());
-    }
     // Started hidden at login where a window can't hide: start in the tray without mapping one,
     // so no window flashes up. Without a tray to come back from, the window opens after all.
     let mut window = true;
@@ -353,13 +340,6 @@ fn name_backends(backends: eframe::wgpu::Backends) -> String {
 /// which backends a start with no override asks for.
 #[cfg(windows)]
 const DEFAULT_BACKENDS_LABEL: &str = "Direct3D 12 and OpenGL";
-#[cfg(not(any(windows, target_os = "macos")))]
-const DEFAULT_BACKENDS_LABEL: &str = "Vulkan and OpenGL";
-/// macOS leaves egui-wgpu's `PRIMARY | GL` mask alone, but that doesn't put OpenGL in reach: wgpu's
-/// GL backend loads `libEGL.dylib`, which macOS doesn't ship, so it finds no OpenGL adapter to pick
-/// and Metal is what a start there can use. The label names what can actually be tried.
-#[cfg(target_os = "macos")]
-const DEFAULT_BACKENDS_LABEL: &str = "Metal";
 
 /// [`StartupBackends`]' order: wgpu's own list, then the fallback.
 fn startup_plan(named_by_env: bool) -> Vec<Option<eframe::wgpu::Backends>> {
@@ -367,14 +347,6 @@ fn startup_plan(named_by_env: bool) -> Vec<Option<eframe::wgpu::Backends>> {
         (true, _) | (false, None) => vec![None],
         (false, Some(fallback)) => vec![None, Some(fallback)],
     }
-}
-
-/// The backend a start falls back to when wgpu's own list can't create the UI pipeline, if the
-/// platform has one to offer.
-#[cfg(target_os = "macos")]
-fn fallback_backends() -> Option<eframe::wgpu::Backends> {
-    // Metal is the only backend macOS has; a Metal failure has no second backend to fall back to.
-    None
 }
 
 /// OpenGL, which draws the launcher everywhere else: it needs no vendor ICDs and no overlay
@@ -452,57 +424,6 @@ fn adapter_rank(backend: eframe::wgpu::Backend, device_type: eframe::wgpu::Devic
         DeviceType::Cpu => 5,
     };
     (backend != Backend::Dx12, device)
-}
-
-/// wgpu's adapter on Linux and the BSDs: the GPU the desktop runs on. egui asks for the
-/// high-performance GPU, which on a hybrid laptop in PRIME on-demand mode is the discrete one while
-/// the display server runs on the integrated one: every frame then crosses between the GPUs, and
-/// while the window is resized it shows stale or garbled frames and can stop drawing (issue #69).
-/// With no preference wgpu takes the first adapter Vulkan lists, and Mesa's device-select layer
-/// lists the display server's GPU first (or the one `DRI_PRIME` picks). Without that layer the
-/// order follows the ICD files, where lavapipe (`lvp_icd`) can sort before the real driver, so a
-/// software rasterizer only wins when nothing else can draw. `WGPU_POWER_PREF` (`low`, `high` or
-/// `none`) still overrides it, and then wgpu picks the adapter itself.
-#[cfg(not(any(windows, target_os = "macos")))]
-fn wgpu_options(backends: Option<eframe::wgpu::Backends>) -> eframe::WgpuConfiguration {
-    use eframe::wgpu::{DeviceType, PowerPreference};
-    let mut config = eframe::WgpuConfiguration::default();
-    if let eframe::egui_wgpu::WgpuSetup::CreateNew(setup) = &mut config.wgpu_setup {
-        if let Some(backends) = backends {
-            setup.instance_descriptor.backends = backends;
-        }
-        if let Some(preference) = PowerPreference::from_env() {
-            setup.power_preference = preference;
-        } else {
-            setup.power_preference = PowerPreference::None;
-            setup.native_adapter_selector = Some(Arc::new(|adapters, surface| {
-                adapters
-                    .iter()
-                    .filter(|a| surface.is_none_or(|s| a.is_surface_supported(s)))
-                    .min_by_key(|a| a.get_info().device_type == DeviceType::Cpu)
-                    .cloned()
-                    .ok_or_else(|| "no graphics adapter can draw to the window".to_owned())
-            }));
-        }
-    }
-    config
-}
-
-/// Returns wgpu's defaults, except that Intel Macs skip the indirect-call validation shaders
-/// ([`skips_indirect_validation`]).
-#[cfg(target_os = "macos")]
-fn wgpu_options(backends: Option<eframe::wgpu::Backends>) -> eframe::WgpuConfiguration {
-    use eframe::wgpu::InstanceFlags;
-    let mut config = eframe::WgpuConfiguration::default();
-    if let eframe::egui_wgpu::WgpuSetup::CreateNew(setup) = &mut config.wgpu_setup {
-        if let Some(backends) = backends {
-            setup.instance_descriptor.backends = backends;
-        }
-        if skips_indirect_validation(std::env::consts::OS, cfg!(target_arch = "x86_64")) {
-            setup.instance_descriptor.flags = setup.instance_descriptor.flags.difference(InstanceFlags::VALIDATION_INDIRECT_CALL).with_env();
-        }
-    }
-    config
 }
 
 /// wgpu compiles its indirect-call validation shaders inside `request_device`. On old Intel Macs
@@ -634,21 +555,6 @@ fn no_window() -> egui::RawInput {
     egui::RawInput { focused: false, viewports: std::iter::once((egui::ViewportId::ROOT, viewport)).collect(), ..Default::default() }
 }
 
-/// macOS sends notifications on behalf of a bundle id. When none is set, the library looks up an app named
-/// "use_default" and macOS asks the user "Where is use_default?". Set ours before the first notification.
-/// The library accepts only one call (even a failed one skips that lookup), so the first outcome is kept and logged once.
-#[cfg(target_os = "macos")]
-fn claim_notification_identity() -> &'static Result<(), String> {
-    static CLAIMED: OnceLock<Result<(), String>> = OnceLock::new();
-    CLAIMED.get_or_init(|| {
-        let claimed = notify_rust::set_application(APP_ID).map_err(|e| e.to_string());
-        if let Err(e) = &claimed {
-            log::warn!("notification identity {APP_ID}: {e}");
-        }
-        claimed
-    })
-}
-
 /// A default-folder question (format and architecture) with the host's answer.
 type DefaultFolderAnswer = ((open3d_launcher_core::PackageKind, Option<open3d_launcher_core::Arch>), Option<String>);
 
@@ -670,14 +576,10 @@ impl Host for DesktopHost {
         let (title, body) = (title.to_string(), body.to_string());
         // Some platforms block while the notification is delivered.
         std::thread::spawn(move || {
-            #[cfg(target_os = "macos")]
-            claim_notification_identity();
             let mut n = notify_rust::Notification::new();
             n.summary(&title).body(&body).appname("Open3D Launcher");
             #[cfg(windows)]
             n.app_id(APP_ID);
-            #[cfg(all(unix, not(target_os = "macos")))]
-            n.icon(APP_ID);
             if let Err(e) = n.show() {
                 log::warn!("notification: {e}");
             }
@@ -735,8 +637,6 @@ impl Host for DesktopHost {
 /// Everything that outlives a window: the UI state and its backend, the tray icon, and the work
 /// that goes on with or without a window.
 struct Launcher {
-    #[cfg(target_os = "linux")]
-    system_theme: system_theme::Monitor,
     ui: LauncherUi,
     tray: Option<tray::Tray>,
     host: DesktopHost,
@@ -764,8 +664,6 @@ impl Launcher {
             let _ = asked.send(info.delay);
         });
         Self {
-            #[cfg(target_os = "linux")]
-            system_theme: system_theme::Monitor::default(),
             ui: LauncherUi::new(&windowless, backend, Settings::default()),
             tray: None,
             host: DesktopHost { tray: false, quit: false, default_folders: Vec::new() },
@@ -915,9 +813,6 @@ struct Shell<'a> {
     /// tray's left-click toggle, which macOS never sends, as a left click opens the tray menu.
     visible: bool,
     quitting: bool,
-    /// The "show on the current desktop" setting last applied to the window (macOS).
-    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
-    applied_follow: Option<bool>,
 }
 
 impl<'a> Shell<'a> {
@@ -925,7 +820,7 @@ impl<'a> Shell<'a> {
         let window_hides = window_can_hide(cc.display_handle().ok().map(|d| d.as_raw()));
         // Started hidden at login but there's no tray to come back from: show the window.
         let visible = !hidden || launcher.tray.is_none();
-        let mut shell = Self { launcher, window_hides, visible: true, quitting: false, applied_follow: None };
+        let mut shell = Self { launcher, window_hides, visible: true, quitting: false };
         if !visible && window_hides {
             // Started in the tray: the window stays out of sight. On macOS this doesn't hide the
             // app as `put_away` does, since the app is still being activated as it starts, which
@@ -944,14 +839,6 @@ impl<'a> Shell<'a> {
         self.visible = true;
         // Before the window is ordered front, so it comes to this desktop rather than taking the
         // user to its own (macOS; the setting doesn't exist elsewhere).
-        #[cfg(target_os = "macos")]
-        {
-            let on = self.launcher.ui.settings.show_on_current_desktop;
-            spaces::follow_current_desktop(on);
-            self.applied_follow = Some(on);
-            // Back from `put_away`, which hides the whole app here.
-            hiding::unhide();
-        }
         if self.window_hides {
             ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
             ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
@@ -967,8 +854,6 @@ impl<'a> Shell<'a> {
     fn put_away(&mut self, ctx: &egui::Context) {
         if self.window_hides {
             self.visible = false;
-            #[cfg(target_os = "macos")]
-            hiding::hide();
             #[cfg(not(target_os = "macos"))]
             ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
         } else {
@@ -987,12 +872,6 @@ impl<'a> Shell<'a> {
 impl eframe::App for Shell<'_> {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let requests = self.launcher.tick(ctx);
-        #[cfg(target_os = "macos")]
-        if self.applied_follow != Some(self.launcher.ui.settings.show_on_current_desktop) {
-            let on = self.launcher.ui.settings.show_on_current_desktop;
-            spaces::follow_current_desktop(on);
-            self.applied_follow = Some(on);
-        }
         for request in requests {
             match request {
                 Request::Toggle if self.visible => self.put_away(ctx),
@@ -1025,8 +904,6 @@ impl eframe::App for Shell<'_> {
     }
 
     fn raw_input_hook(&mut self, ctx: &egui::Context, raw_input: &mut egui::RawInput) {
-        #[cfg(target_os = "linux")]
-        self.launcher.system_theme.apply(raw_input);
         self.launcher.ui.raw_input(ctx, raw_input);
     }
 
@@ -1052,15 +929,6 @@ mod tests {
     use super::*;
 
     const NOW: i64 = 1_791_500_000;
-
-    /// The bundle id is set once: asking again gives the first outcome, not the library's "already set" error.
-    /// (Setting it fails where the launcher is not installed, so the outcome itself is not asserted.)
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn notification_identity_is_claimed_once() {
-        let first = claim_notification_identity();
-        assert_eq!(claim_notification_identity(), first);
-    }
 
     /// What the tests can see of a [`Quiet`] backend, and its clock.
     #[derive(Default)]
@@ -1303,7 +1171,7 @@ mod tests {
     fn quitting_overrides_a_close_to_the_tray() {
         let (mut launcher, _show, _) = launcher();
         let ctx = launcher.windowless.clone();
-        let mut shell = Shell { launcher: &mut launcher, window_hides: false, visible: true, quitting: false, applied_follow: None };
+        let mut shell = Shell { launcher: &mut launcher, window_hides: false, visible: true, quitting: false };
         shell.put_away(&ctx);
         assert!(shell.launcher.closed_to_tray);
         shell.quit(&ctx);
@@ -1314,7 +1182,7 @@ mod tests {
     fn a_window_that_hides_is_not_closed_to_the_tray() {
         let (mut launcher, _show, _) = launcher();
         let ctx = launcher.windowless.clone();
-        let mut shell = Shell { launcher: &mut launcher, window_hides: true, visible: true, quitting: false, applied_follow: None };
+        let mut shell = Shell { launcher: &mut launcher, window_hides: true, visible: true, quitting: false };
         shell.put_away(&ctx);
         assert!(!shell.visible);
         assert!(!shell.launcher.closed_to_tray);
@@ -1418,28 +1286,6 @@ mod tests {
         }
     }
 
-    #[cfg(target_os = "macos")]
-    #[test]
-    fn intel_macs_create_the_device_without_indirect_validation() {
-        use eframe::egui_wgpu::WgpuSetup;
-        use eframe::wgpu::InstanceFlags;
-        fn flags(config: eframe::WgpuConfiguration) -> InstanceFlags {
-            match config.wgpu_setup {
-                WgpuSetup::CreateNew(setup) => setup.instance_descriptor.flags,
-                WgpuSetup::Existing(_) => panic!("the launcher creates its own wgpu instance"),
-            }
-        }
-        let launcher = flags(wgpu_options(None));
-        if !cfg!(target_arch = "x86_64") {
-            // Apple silicon keeps wgpu's flags.
-            assert_eq!(launcher, flags(eframe::WgpuConfiguration::default()));
-        } else {
-            // The flag is off unless `WGPU_VALIDATION_INDIRECT_CALL` turns it back on.
-            let asked = std::env::var_os("WGPU_VALIDATION_INDIRECT_CALL").is_some_and(|v| v != "0");
-            assert_eq!(launcher.contains(InstanceFlags::VALIDATION_INDIRECT_CALL), asked, "{launcher:?}");
-        }
-    }
-
     #[test]
     fn dx12_shaders_compile_with_fxc_unless_asked() {
         use eframe::egui_wgpu::WgpuSetup;
@@ -1487,18 +1333,5 @@ mod tests {
         // A GPU that offers more still gets egui's request, not everything it has.
         let generous = Limits { max_inter_stage_shader_variables: 28, ..Limits::default() };
         assert_eq!(fit_limits(Limits::default(), &generous), Limits::default());
-    }
-
-    #[cfg(not(any(windows, target_os = "macos")))]
-    #[test]
-    fn linux_draws_on_the_desktops_gpu_unless_told_otherwise() {
-        use eframe::wgpu::PowerPreference;
-        let config = wgpu_options(None);
-        let eframe::egui_wgpu::WgpuSetup::CreateNew(setup) = &config.wgpu_setup else {
-            panic!("the launcher creates its own wgpu instance");
-        };
-        // egui would ask for the discrete GPU: on a PRIME laptop that's not the desktop's (issue #69).
-        let expected = PowerPreference::from_env().unwrap_or(PowerPreference::None);
-        assert_eq!(setup.power_preference, expected);
     }
 }

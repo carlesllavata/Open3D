@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! `Http::new` as an app gets it: an integration test builds the library without `cfg(test)`, so
-//! this is the release configuration (or the `local-mirror` one, with that feature on).
+//! `Http::new` as the launcher gets it: an integration test builds the library without
+//! `cfg(test)`, so this is the release configuration.
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use craft_update::http::{Fetched, Http};
+use craft_update::{Fetched, Http};
 
 /// A plain-HTTP server on loopback that answers every request with `{}`; counts the requests.
 fn serve() -> (String, Arc<AtomicUsize>) {
@@ -31,23 +31,18 @@ fn serve() -> (String, Arc<AtomicUsize>) {
 }
 
 #[test]
-fn the_remote_agents_take_plain_http_only_with_a_local_mirror() {
+fn the_remote_agents_refuse_plain_http() {
     let (base, seen) = serve();
     let http = Http::new("craft-update-tests/0").unwrap();
     // `get_api` and `redirect_target` always use the agents for remote hosts.
     let api = http.get_api(&format!("{base}/repos/carlesllavata/x/releases"), None);
     let redirect = http.redirect_target(&format!("{base}/releases/latest"));
-    if cfg!(feature = "local-mirror") {
-        assert!(matches!(api, Ok(Fetched::Body { .. })), "{api:?}");
-        assert!(matches!(redirect, Err(ref e) if e.contains("HTTP 200")), "{redirect:?}");
-        assert_eq!(seen.load(Ordering::SeqCst), 2);
-    } else {
-        assert!(api.as_ref().is_err_and(|e| e.contains("refused plain HTTP")), "{api:?}");
-        assert!(redirect.as_ref().is_err_and(|e| e.contains("refused plain HTTP")), "{redirect:?}");
-        // An upper-case scheme isn't a loopback link, so it goes to a remote agent too.
-        assert!(http.get_text(&format!("HTTP{}", &base[4..])).is_err_and(|e| e.contains("refused plain HTTP")));
-        assert_eq!(seen.load(Ordering::SeqCst), 0, "a refused request never connects");
-    }
+    assert!(api.as_ref().is_err_and(|e| e.contains("refused plain HTTP")), "{api:?}");
+    assert!(!matches!(api, Ok(Fetched::Body { .. })));
+    assert!(redirect.as_ref().is_err_and(|e| e.contains("refused plain HTTP")), "{redirect:?}");
+    // An upper-case scheme isn't a loopback link, so it goes to a remote agent too.
+    assert!(http.get_text(&format!("HTTP{}", &base[4..])).is_err_and(|e| e.contains("refused plain HTTP")));
+    assert_eq!(seen.load(Ordering::SeqCst), 0, "a refused request never connects");
     // A loopback link goes to the direct agents, which serve plain HTTP in every build.
     assert_eq!(http.get_text(&format!("{base}/SHA256SUMS.txt")).unwrap().as_deref(), Some("{}"));
 }
