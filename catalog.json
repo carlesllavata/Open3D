@@ -8,5 +8,21 @@
     "size": 15309824,
     "notes": "The first version of the launcher: one place to install, update and remove the Open3D apps for 3ds Max.\n\n- **Install the launcher with one click.** Run the downloaded `Open3D-Launcher-0.1.0.exe` and choose\n  **Install**: it goes in your user folder (no administrator rights), with a Start menu shortcut and, if you\n  want, a desktop one. **Run without installing** works too.\n- **Remove it like any other program**, from Windows' *Settings > Apps > Installed apps*. The apps you\n  installed with it stay in 3ds Max.\n- **Scripted installs:** `--install` installs the launcher without a window, and `--uninstall --quiet` removes\n  it without asking.\n- **The launcher updates itself.** When a newer launcher is published, a bar at the top offers to update it;\n  the new version is checked before it replaces the old one, and it restarts on its own.\n- **Install, update and remove apps.** The launcher lists the Open3D apps with the version you have and the\n  latest one, and installs each app as a 3ds Max plug-in bundle in `ApplicationPlugins`: per user, no\n  administrator rights, and every 3ds Max from 2025 on picks it up. Removing an app keeps its settings.\n- **Safe updates.** Every download is checked against the catalog before anything changes; a damaged\n  download is refused and the version you had stays in place. An update interrupted halfway is put right\n  the next time the launcher starts.\n- **3ds Max must be closed** to install, update or remove an app; the launcher says so and waits.\n- **Development copies are flagged.** If a second copy of an app is in the plug-in folder (for example\n  `OpenTools-dev.bundle`), the launcher warns you, because 3ds Max loads only one of them.\n- **What's new in each version** is shown next to the app, taken from its changelog.\n- Free software under the GNU GPL v3 or later.\n\nThe launcher isn't code-signed yet: the first time you run it, Windows SmartScreen may show \"Windows\nprotected your PC\". Choose **More info > Run anyway**."
   },
-  "apps": []
+  "apps": [
+    {
+      "id": "opentools",
+      "name": "OpenTools",
+      "summary": "Tool hub for 3ds Max: scene clean-up, materials, clipboard and more.",
+      "bundle": "OpenTools.bundle",
+      "max_min": 2025,
+      "latest": {
+        "version": "0.5.1",
+        "date": "2026-11-11",
+        "url": "https://github.com/carlesllavata/Open3D/releases/download/opentools-v0.5.1/OpenTools-0.5.1.zip",
+        "sha256": "e0455cac20afcfb11395fb4b8fe56e3a12a7b2cde3e155e157fa2f6899603f16",
+        "size": 212169,
+        "notes": "OpenTools is now free software under the GNU GPL v3 or later, and you can install and update it with the\nOpen3D Launcher. Nothing changes in how the tools work.\n\n- **Install and update OpenTools with the Open3D Launcher.** Download the launcher from\n  [its release page](https://github.com/carlesllavata/Open3D/releases/latest), install it and click\n  **Install** next to OpenTools: it puts OpenTools in `ApplicationPlugins` for you and tells you when a new\n  version is out. If you copied OpenTools there by hand, the launcher finds it and updates it in place.\n  Close 3ds Max before installing or updating.\n- **OpenTools is now free software under the GNU GPL v3 or later** (it was under the MIT license). You can\n  still use it, share it and change it freely; if you share a changed version, it has to stay under the same\n  license with its source. The full text is in `LICENSE`.\n- **README brought up to date:** the current version, the Open3D suite, removing an old `Open3DS.bundle` and\n  where your settings stay when you uninstall."
+      }
+    }
+  ]
 }
