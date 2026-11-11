@@ -8,9 +8,14 @@ catalog.json (committed and pushed).
     python -I tools\\publish.py opentools --dry-run      # build the zip and a catalog preview, upload nothing
     python -I tools\\publish.py opentools                 # latest vX.Y.Z tag
     python -I tools\\publish.py openmanager --version 0.3.0
+    python -I tools\\publish.py launcher                  # the launcher itself, version from Cargo.toml
 
 Run it with 3ds Max's Python (an app's own build step may need PySide6). Apps are described in
 tools/apps.json; checkout paths there are relative to this repo.
+
+`launcher` builds the release exe from this repo (it must be committed and pushed: the release tag
+`launcher-vX.Y.Z` is made on main), attaches it as `Open3D-Launcher-X.Y.Z.exe`, and records it as the
+catalog's `launcher` entry, which is what makes installed launchers offer the update.
 """
 
 import argparse
@@ -228,16 +233,98 @@ def publish(app_id, version=None, dry_run=False, push=True, repo=PUBLIC_REPO):
         print("  catalog committed, not pushed (--no-push)")
 
 
+def find_cargo():
+    local = Path(os.path.expandvars(r"%USERPROFILE%\.cargo\bin\cargo.exe"))
+    if local.is_file():
+        return str(local)
+    found = shutil.which("cargo")
+    if not found:
+        raise PublishError("cargo not found (install Rust from https://rustup.rs)")
+    return found
+
+
+def launcher_version():
+    text = (LAUNCHER / "Cargo.toml").read_text(encoding="utf-8")
+    m = re.search(r'^version\s*=\s*"([^"]+)"', text, re.M)
+    if not m:
+        raise PublishError("No version in Cargo.toml")
+    return m.group(1)
+
+
+def publish_launcher(dry_run=False, push=True, repo=PUBLIC_REPO):
+    version = launcher_version()
+    release_tag = "launcher-v%s" % version
+    asset = "Open3D-Launcher-%s.exe" % version
+    print("Open3D Launcher %s" % version)
+    git = ["git", "-C", str(LAUNCHER)]
+    if not dry_run:
+        if run(git + ["status", "--porcelain"]).strip():
+            raise PublishError("Commit the launcher first: the release is built from what is committed.")
+        run(git + ["fetch", "-q"])
+        if run(git + ["rev-parse", "HEAD"]).strip() != run(git + ["rev-parse", "@{u}"]).strip():
+            raise PublishError("Push main first: the release tag is made on the remote main.")
+    notes = changelog_section(LAUNCHER / "CHANGELOG.md", version)
+
+    cargo = find_cargo()
+    print("  cargo build --release")
+    run([cargo, "build", "--release"], cwd=LAUNCHER)
+    meta = json.loads(run([cargo, "metadata", "--format-version", "1", "--no-deps"], cwd=LAUNCHER))
+    exe = Path(meta["target_directory"]) / "release" / "open3d-launcher.exe"
+    DIST.mkdir(exist_ok=True)
+    out = DIST / asset
+    shutil.copy2(exe, out)
+    entry = {
+        "version": version,
+        "date": str(datetime.date.today()),
+        "url": "https://github.com/%s/releases/download/%s/%s" % (repo, release_tag, asset),
+        "sha256": sha256(out),
+        "size": out.stat().st_size,
+        "notes": notes,
+    }
+    print("  %s: %.1f MB, sha256 %s" % (asset, entry["size"] / 1e6, entry["sha256"]))
+    old = load_catalog()
+    catalog = {"schema": old.get("schema", 1), "launcher": entry, "apps": old.get("apps", [])}
+
+    if dry_run:
+        preview = DIST / "catalog.preview.json"
+        write_json(preview, catalog)
+        print("Dry run: nothing uploaded. Exe: %s  Catalog preview: %s" % (out, preview))
+        return
+
+    gh = find_gh()
+    if subprocess.run([gh, "release", "view", release_tag, "--repo", repo], capture_output=True).returncode == 0:
+        raise PublishError("%s is already published in %s" % (release_tag, repo))
+    notes_file = DIST / ("%s-notes.md" % release_tag)
+    notes_file.write_text(notes + "\n", encoding="utf-8")
+    run([gh, "release", "create", release_tag, str(out), "--repo", repo, "--target", "main",
+         "--title", "Open3D Launcher %s" % version, "--notes-file", str(notes_file)])
+    print("  release %s created" % release_tag)
+
+    write_json(CATALOG, catalog)
+    run(git + ["add", "catalog.json"])
+    run(git + ["commit", "-m", "Catalog: Open3D Launcher %s" % version])
+    if push:
+        run(git + ["push"])
+        print("  catalog pushed")
+    else:
+        print("  catalog committed, not pushed (--no-push)")
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("app", help="app id from tools/apps.json")
+    p.add_argument("app", help="app id from tools/apps.json, or 'launcher'")
     p.add_argument("--version", help="version to publish (default: the latest vX.Y.Z tag)")
     p.add_argument("--dry-run", action="store_true", help="build the zip and a catalog preview only")
     p.add_argument("--no-push", action="store_true", help="commit catalog.json but do not push it")
     p.add_argument("--repo", default=PUBLIC_REPO, help="public repo (default %(default)s)")
     a = p.parse_args(argv)
     try:
-        publish(a.app, a.version, a.dry_run, not a.no_push, a.repo)
+        if a.app == "launcher":
+            if a.version:
+                raise PublishError("The launcher's version comes from Cargo.toml; don't pass --version")
+            publish_launcher(a.dry_run, not a.no_push, a.repo)
+        else:
+            publish(a.app, a.version, a.dry_run, not a.no_push, a.repo)
     except PublishError as e:
         print("error: %s" % e, file=sys.stderr)
         return 1

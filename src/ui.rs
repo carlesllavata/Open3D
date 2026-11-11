@@ -2,12 +2,28 @@
 //! The launcher window. All slow work (catalog, downloads, file moves, checking for 3ds Max) runs on
 //! background threads that report back through a channel.
 
-use crate::catalog::{self, AppEntry, Catalog};
-use crate::{Options, install, net, notes};
+use crate::catalog::{self, AppEntry, Catalog, Release};
+use crate::{ICON_PNG, Options, StartMode, install, net, notes, setup};
 use eframe::egui::{self, Color32, RichText};
 use std::cmp::Ordering;
+use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::{Duration, Instant};
+
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// What the window shows.
+#[derive(Clone, PartialEq, Eq)]
+enum Screen {
+    /// First run of a downloaded copy: install the launcher or just run it.
+    Welcome,
+    /// The app list.
+    Main,
+    /// `--uninstall`: confirm removing the launcher.
+    Uninstall,
+    /// A final message, with a Close button.
+    Done(String),
+}
 
 const ACCENT: Color32 = Color32::from_rgb(255, 140, 26);
 const OK: Color32 = Color32::from_rgb(110, 200, 120);
@@ -53,6 +69,11 @@ enum Msg {
         verb: Verb,
         result: Result<(), String>,
     },
+    /// The launcher installed itself; the path is the installed exe.
+    SelfInstalled(Result<PathBuf, String>),
+    SelfUninstalled(Result<(), String>),
+    /// A newer launcher replaced this exe; the path is the exe to start.
+    LauncherUpdated(Result<PathBuf, String>),
 }
 
 struct Job {
@@ -81,10 +102,27 @@ pub struct Launcher {
     job: Option<Job>,
     message: Option<(bool, String)>,
     confirm_uninstall: Option<String>,
+    screen: Screen,
+    desktop_shortcut: bool,
+    /// Installing / removing the launcher itself, or updating it.
+    setup_busy: bool,
+    setup_error: Option<String>,
+    icon: Option<egui::TextureHandle>,
 }
 
 impl Launcher {
     pub fn new(cc: &eframe::CreationContext<'_>, opts: Options) -> Self {
+        let screen = match opts.mode {
+            StartMode::Uninstall => Screen::Uninstall,
+            StartMode::Normal if !setup::is_installed_copy() => Screen::Welcome,
+            _ => Screen::Main,
+        };
+        let icon = eframe::icon_data::from_png_bytes(ICON_PNG).ok().map(|d| {
+            let image =
+                egui::ColorImage::from_rgba_unmultiplied([d.width as usize, d.height as usize], &d.rgba);
+            cc.egui_ctx
+                .load_texture("open3d-icon", image, egui::TextureOptions::LINEAR)
+        });
         let ctx = cc.egui_ctx.clone();
         ctx.set_theme(egui::Theme::Dark);
         ctx.style_mut_of(egui::Theme::Dark, |s| {
@@ -120,9 +158,82 @@ impl Launcher {
             job: None,
             message: None,
             confirm_uninstall: None,
+            screen,
+            desktop_shortcut: true,
+            setup_busy: false,
+            setup_error: None,
+            icon,
         };
-        me.load_catalog(&ctx);
+        if me.screen != Screen::Uninstall {
+            me.load_catalog(&ctx);
+        }
         me
+    }
+
+    fn spawn_setup(&mut self, ctx: &egui::Context, work: impl FnOnce() -> Msg + Send + 'static) {
+        self.setup_busy = true;
+        self.setup_error = None;
+        let tx = self.tx.clone();
+        let ctx = ctx.clone();
+        std::thread::spawn(move || {
+            let _ = tx.send(work());
+            ctx.request_repaint();
+        });
+    }
+
+    /// The catalog's launcher release, when it is newer than this exe.
+    fn launcher_update(&self) -> Option<Release> {
+        let l = self.catalog.as_ref()?.launcher.as_ref()?;
+        (catalog::compare_versions(&l.version, VERSION) == Ordering::Greater).then(|| l.clone())
+    }
+
+    fn start_launcher_update(&mut self, ctx: &egui::Context, rel: Release) {
+        if self.job.is_some() || self.setup_busy {
+            return;
+        }
+        self.message = None;
+        self.job = Some(Job {
+            name: "Open3D Launcher".into(),
+            verb: Verb::Update,
+            done: 0,
+            total: None,
+        });
+        let tx = self.tx.clone();
+        let ctx = ctx.clone();
+        let loc = self.opts.catalog.join(&rel.url);
+        std::thread::spawn(move || {
+            let result = (|| {
+                let dest = setup::download_path()?;
+                let mut last = Instant::now() - Duration::from_secs(1);
+                let hash = net::download(&loc, &dest, |done, total| {
+                    if last.elapsed() > Duration::from_millis(80) || Some(done) == total {
+                        last = Instant::now();
+                        let _ = tx.send(Msg::Progress { done, total });
+                        ctx.request_repaint();
+                    }
+                });
+                let checked = hash.and_then(|h| {
+                    let size = std::fs::metadata(&dest).map(|m| m.len()).unwrap_or(0);
+                    if !h.eq_ignore_ascii_case(&rel.sha256) {
+                        Err("The download is damaged (its checksum does not match the catalog).".to_string())
+                    } else if rel.size > 0 && size != rel.size {
+                        Err(format!(
+                            "The download has {size} bytes, the catalog says {}.",
+                            rel.size
+                        ))
+                    } else {
+                        Ok(())
+                    }
+                });
+                if let Err(e) = checked {
+                    let _ = std::fs::remove_file(&dest);
+                    return Err(e);
+                }
+                setup::replace_running(&dest, &rel.version)
+            })();
+            let _ = tx.send(Msg::LauncherUpdated(result));
+            ctx.request_repaint();
+        });
     }
 
     fn load_catalog(&mut self, ctx: &egui::Context) {
@@ -159,7 +270,7 @@ impl Launcher {
         }
     }
 
-    fn handle_messages(&mut self) {
+    fn handle_messages(&mut self, ctx: &egui::Context) {
         while let Ok(msg) = self.rx.try_recv() {
             match msg {
                 Msg::Catalog(Ok(c)) => {
@@ -187,8 +298,150 @@ impl Launcher {
                     });
                     self.refresh_states();
                 }
+                Msg::SelfInstalled(result) => {
+                    self.setup_busy = false;
+                    match result.and_then(|exe| setup::launch(&exe, false)) {
+                        Ok(()) => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                        Err(e) => self.setup_error = Some(e),
+                    }
+                }
+                Msg::SelfUninstalled(result) => {
+                    self.setup_busy = false;
+                    match result {
+                        Ok(()) => self.screen = Screen::Done(
+                            "Open3D Launcher was removed from this computer. The apps you installed with it \
+                                 are still in 3ds Max."
+                                .into(),
+                        ),
+                        Err(e) => self.setup_error = Some(e),
+                    }
+                }
+                Msg::LauncherUpdated(result) => {
+                    self.job = None;
+                    match result.and_then(|exe| setup::launch(&exe, true)) {
+                        Ok(()) => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                        Err(e) => self.message = Some((true, format!("Updating the launcher failed: {e}"))),
+                    }
+                }
             }
         }
+    }
+
+    /// First run of a downloaded copy.
+    fn welcome(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
+        let installed = setup::is_installed();
+        egui::CentralPanel::default().show(ui, |ui| {
+            ui.add_space(40.0);
+            ui.vertical_centered(|ui| {
+                if let Some(t) = &self.icon {
+                    ui.add(egui::Image::from_texture((t.id(), egui::vec2(96.0, 96.0))));
+                }
+                ui.add_space(8.0);
+                ui.label(RichText::new("Open3D Launcher").size(26.0).strong());
+                ui.label(RichText::new(format!("Version {VERSION}")).weak());
+                ui.add_space(14.0);
+                if installed {
+                    ui.label("Open3D Launcher is already installed on this computer.");
+                    ui.label(
+                        RichText::new("Install this version over it, or open the installed one.")
+                            .weak(),
+                    );
+                } else {
+                    ui.label("Install the launcher on this computer to keep the Open3D apps for 3ds Max up to date.");
+                    ui.label(
+                        RichText::new(
+                            "It goes in your user folder (no administrator rights), with a Start menu shortcut, \
+                             and it shows in Windows' installed apps so you can remove it.",
+                        )
+                        .weak(),
+                    );
+                }
+                ui.add_space(10.0);
+                ui.add_enabled(
+                    !self.setup_busy,
+                    egui::Checkbox::new(&mut self.desktop_shortcut, "Add a desktop shortcut"),
+                );
+                ui.add_space(10.0);
+                ui.horizontal(|ui| {
+                    // Centre the row of buttons.
+                    let width = if installed { 3.0 * 180.0 + 16.0 } else { 2.0 * 180.0 + 8.0 };
+                    ui.add_space(((ui.available_width() - width) / 2.0).max(0.0));
+                    let wide = |b: egui::Button<'static>| b.min_size(egui::vec2(180.0, 34.0));
+                    let label = if installed { "Install this version" } else { "Install" };
+                    if ui.add_enabled(!self.setup_busy, wide(primary(label))).clicked() {
+                        let desktop = self.desktop_shortcut;
+                        self.spawn_setup(ctx, move || Msg::SelfInstalled(setup::install_self(desktop)));
+                    }
+                    if installed
+                        && ui
+                            .add_enabled(!self.setup_busy, wide(secondary("Open the installed launcher")))
+                            .clicked()
+                    {
+                        match setup::installed_exe().ok_or("LOCALAPPDATA is not set".to_string()).and_then(|e| setup::launch(&e, false)) {
+                            Ok(()) => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
+                            Err(e) => self.setup_error = Some(e),
+                        }
+                    }
+                    if ui.add_enabled(!self.setup_busy, wide(secondary("Run without installing"))).clicked() {
+                        self.screen = Screen::Main;
+                    }
+                });
+                ui.add_space(10.0);
+                if self.setup_busy {
+                    ui.spinner();
+                }
+                if let Some(e) = &self.setup_error {
+                    ui.label(RichText::new(e.as_str()).color(ERR));
+                }
+            });
+        });
+    }
+
+    /// `--uninstall`, from Windows' installed apps.
+    fn uninstall_screen(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
+        egui::CentralPanel::default().show(ui, |ui| {
+            ui.add_space(60.0);
+            ui.vertical_centered(|ui| {
+                if let Some(t) = &self.icon {
+                    ui.add(egui::Image::from_texture((t.id(), egui::vec2(72.0, 72.0))));
+                }
+                ui.add_space(8.0);
+                ui.label(RichText::new("Remove Open3D Launcher?").size(22.0).strong());
+                ui.add_space(6.0);
+                ui.label("Its shortcuts and its entry in Windows' installed apps are removed too.");
+                ui.label(
+                    RichText::new("The apps you installed with it stay in 3ds Max; remove those from the launcher first if you want them gone.")
+                        .weak(),
+                );
+                ui.add_space(14.0);
+                ui.horizontal(|ui| {
+                    ui.add_space(((ui.available_width() - 2.0 * 140.0 - 8.0) / 2.0).max(0.0));
+                    if ui.add_enabled(!self.setup_busy, primary("Remove").min_size(egui::vec2(140.0, 34.0))).clicked() {
+                        self.spawn_setup(ctx, || Msg::SelfUninstalled(setup::uninstall_self()));
+                    }
+                    if ui.add_enabled(!self.setup_busy, secondary("Cancel").min_size(egui::vec2(140.0, 34.0))).clicked() {
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    }
+                });
+                if let Some(e) = &self.setup_error {
+                    ui.add_space(8.0);
+                    ui.label(RichText::new(e.as_str()).color(ERR));
+                }
+            });
+        });
+    }
+
+    fn done_screen(&mut self, ui: &mut egui::Ui, ctx: &egui::Context, text: &str) {
+        egui::CentralPanel::default().show(ui, |ui| {
+            ui.add_space(80.0);
+            ui.vertical_centered(|ui| {
+                ui.label(RichText::new(text).size(16.0));
+                ui.add_space(14.0);
+                if ui.add(primary("Close")).clicked() {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                }
+            });
+        });
     }
 
     fn start(&mut self, ctx: &egui::Context, app: AppEntry, verb: Verb) {
@@ -305,8 +558,14 @@ fn secondary(text: &str) -> egui::Button<'static> {
 
 impl eframe::App for Launcher {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        self.handle_messages();
         let ctx = ui.ctx().clone();
+        self.handle_messages(&ctx);
+        match self.screen.clone() {
+            Screen::Welcome => return self.welcome(ui, &ctx),
+            Screen::Uninstall => return self.uninstall_screen(ui, &ctx),
+            Screen::Done(text) => return self.done_screen(ui, &ctx, &text),
+            Screen::Main => {}
+        }
 
         egui::Panel::top("header").show(ui, |ui| {
             ui.add_space(6.0);
@@ -323,6 +582,36 @@ impl eframe::App for Launcher {
             });
             ui.add_space(6.0);
         });
+
+        if let Some(rel) = self.launcher_update() {
+            let mut update = false;
+            egui::Panel::top("launcher_update")
+                .frame(
+                    egui::Frame::new()
+                        .fill(ACCENT.linear_multiply(0.18))
+                        .inner_margin(8.0),
+                )
+                .show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            RichText::new(format!(
+                                "Open3D Launcher {} is available (you have {VERSION}).",
+                                rel.version
+                            ))
+                            .color(ACCENT),
+                        );
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            let free = self.job.is_none() && !self.setup_busy;
+                            if ui.add_enabled(free, primary("Update launcher")).clicked() {
+                                update = true;
+                            }
+                        });
+                    });
+                });
+            if update {
+                self.start_launcher_update(&ctx, rel);
+            }
+        }
 
         if self.max_running {
             egui::Panel::top("max_banner")
