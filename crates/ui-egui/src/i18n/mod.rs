@@ -19,7 +19,6 @@
 //! - [`t`] / the `tl!` macro: a plain string in the language the UI is drawn in.
 //!   [`tr`] takes the language explicitly; [`tr_ctx`] when one English word needs different
 //!   translations.
-//! - [`tr_id`]: a command-id keyed string with the English label as fallback (menu items).
 //! - [`trn`]: plural-aware (`{n}` is filled in). [`fmt`]: fill `{name}` placeholders after [`tr`].
 //! - [`message`] / [`msg`]: a status or error message, translated only where it is shown.
 //!   The message itself stays English (the control channel, tests read it); `@msg` catalog
@@ -36,4 +35,4 @@ mod tests;
 
 pub use detect::{detect_system_lang_in_background, set_system_locales, set_test_lang, system_lang};
 pub use lang::{LANGUAGES, Lang, LangInfo, lang_from_tag};
-pub use translate::{current, fmt, has, message, msg, set_current, t, t_id, tn, tr, tr_ctx, tr_id, trn};
+pub use translate::{current, fmt, has, message, msg, set_current, t, tn, tr, tr_ctx, trn};

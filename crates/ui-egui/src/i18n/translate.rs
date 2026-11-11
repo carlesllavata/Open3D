@@ -39,16 +39,6 @@ pub fn tr_ctx<'a>(lang: Lang, context: &str, s: &'a str) -> &'a str {
     lang.catalog().contextual(context, s).unwrap_or_else(|| tr(lang, s))
 }
 
-/// A string keyed by its command id, falling back to the translation of the English `label`.
-pub fn tr_id<'a>(lang: Lang, id: &str, label: &'a str) -> &'a str {
-    lang.catalog().id(id).unwrap_or_else(|| tr(lang, label))
-}
-
-/// [`tr_id`] in the current language.
-pub fn t_id<'a>(id: &str, label: &'a str) -> &'a str {
-    tr_id(current(), id, label)
-}
-
 /// Fill `{name}` placeholders in one pass. Values and unknown placeholders stay as written.
 pub fn fmt(template: &str, args: &[(&str, &str)]) -> String {
     let mut out = String::with_capacity(template.len());

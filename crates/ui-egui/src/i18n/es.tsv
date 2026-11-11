@@ -21,7 +21,6 @@
 	Launcher	Launcher
 	Open3D suite	Open3D suite
 	by {name}	por {name}
-	Open Source Tools for Creatives, Makers, and Builders	Herramientas de código abierto para creativos, makers y constructores
 	Settings	Ajustes
 	Check for updates	Buscar actualizaciones
 	Grid	Cuadrícula
@@ -38,14 +37,9 @@
 	Inspired by	Inspirada en
 	Status	Estado
 	Installed version	Versión instalada
-	Latest version	Última versión
-	Newest release	Publicación más reciente
 	Issues	Incidencias
 	GitHub	GitHub
 	Website	Sitio web
-	Classic apps	Aplicaciones clásicas
-	New apps	Aplicaciones nuevas
-	NEW	NUEVA
 	Install	Instalar
 	Update to {v}	Actualizar a {v}
 	Open	Abrir
@@ -76,11 +70,6 @@
 	Show in Files	Mostrar en Archivos
 	Reinstall	Reinstalar
 	Uninstall…	Desinstalar…
-	Launch options…	Opciones de inicio…
-	{name} launch options	Opciones de inicio de {name}
-	Flags added each time the app is opened	Parámetros que se añaden cada vez que se abre la aplicación
-	Separate flags with spaces. Quote a value that has spaces in it.	Separa los parámetros con espacios. Pon entre comillas un valor que contenga espacios.
-	A quote isn't closed.	Hay unas comillas sin cerrar.
 	{name} wasn't opened: a quote in its launch options isn't closed.	{name} no se abrió: hay unas comillas sin cerrar en sus opciones de inicio.
 	Save	Guardar
 	All releases	Todas las versiones
@@ -101,11 +90,6 @@
 	Ask for permission once when updating all apps	Pedir permiso una sola vez al actualizar todas las aplicaciones
 	Notify me when an installed app has an update	Avisarme cuando una aplicación instalada tenga una actualización
 	Include pre-releases (betas and release candidates)	Incluir versiones preliminares (betas y versiones candidatas)
-	Installing on Linux	Instalación en Linux
-	Installing on Windows	Instalación en Windows
-	Install new apps as	Instalar las aplicaciones nuevas como
-	System package (recommended)	Paquete del sistema (recomendado)
-	Updates always use the format an app was installed with.	Las actualizaciones siempre usan el formato con el que se instaló cada aplicación.
 	Running in the background	En segundo plano
 	Keep running in the tray when the window is closed	Seguir abierto en la bandeja del sistema al cerrar la ventana
 	Open3D Launcher is still running	Open3D Launcher sigue abierto
@@ -118,9 +102,6 @@
 	Quit Open3D Launcher	Salir de Open3D Launcher
 	Done	Listo
 	Uninstall {name}?	¿Desinstalar {name}?
-	The app will be moved to the Trash. Your documents and settings stay.	La aplicación se moverá a la Papelera. Tus documentos y ajustes se conservan.
-	Windows will remove it like any installed program. Your documents and settings stay.	Windows la quitará como cualquier programa instalado. Tus documentos y ajustes se conservan.
-	Your system's package manager will remove it, and may ask for your password. Your documents and settings stay.	El gestor de paquetes del sistema la quitará y puede pedirte la contraseña. Tus documentos y ajustes se conservan.
 	The app will be removed. Your documents and settings stay.	La aplicación se quitará. Tus documentos y ajustes se conservan.
 	Uninstall	Desinstalar
 	Cancel	Cancelar
@@ -129,10 +110,6 @@
 	yesterday	ayer
 	{month} {day}, {year}	{day} {month} {year}
 	Automatically	Automáticamente
-	Every suite app	Todas las aplicaciones de la suite
-	Apps on this computer	Aplicaciones en este equipo
-	Installed apps with a newer version	Aplicaciones instaladas con una versión más reciente
-	Apps you can install	Aplicaciones que puedes instalar
 	Pin to top	Fijar arriba
 	Unpin	Quitar fijación
 	Pinned	Fijadas
@@ -155,7 +132,6 @@
 	Open link	Abrir enlace
 	Update	Actualizar
 	{name} icon	Icono de {name}
-	Loading Open3D Launcher…	Cargando Open3D Launcher…
 	Cancel update	Cancelar la actualización
 	Stop waiting; the update can be started again later	Dejar de esperar; la actualización se puede volver a iniciar más tarde
 	Download again	Volver a descargar
@@ -173,12 +149,6 @@
 	3ds Max plug-in	Plug-in de 3ds Max
 	Installer (.msi)	Instalador (.msi)
 	Portable (.zip)	Portátil (.zip)
-	Disk image (.dmg)	Imagen de disco (.dmg)
-	Debian package (.deb)	Paquete Debian (.deb)
-	RPM package (.rpm)	Paquete RPM (.rpm)
-	Arch package (.pkg.tar.zst)	Paquete Arch (.pkg.tar.zst)
-	Flatpak bundle	Paquete Flatpak
-	Tarball (.tar.gz)	Archivo tar (.tar.gz)
 month	Jan	ene.
 month	Feb	feb.
 month	Mar	mar.
@@ -194,9 +164,6 @@ month	Dec	dic.
 	Not checked yet	Aún sin comprobar
 	GitHub's hourly limit was reached; full details return in {min} min	Se alcanzó el límite por hora de GitHub; todos los detalles estarán disponibles de nuevo en {min} min
 	GitHub limit hit; back in {min} min	Límite de GitHub alcanzado; disponible de nuevo en {min} min
-	Installing for {platform}	Instalación para {platform}
-	Downloads for {platform}	Descargas para {platform}
-	No downloads for this system	No hay descargas para este sistema
 	Report a problem or suggest an idea on GitHub	Informa de un problema o propón una idea en GitHub
 	Open3D on {name}	Open3D en {name}
 	Couldn't open {name}: {e}	No se pudo abrir {name}: {e}
@@ -224,11 +191,8 @@ month	Dec	dic.
 	Released	Publicada
 	Auto	Automático
 	Language	Idioma
-	Ascending	Ascendente
-	Descending	Descendente
 	Click to reverse the order	Haz clic para invertir el orden
 	Click to sort by this column	Haz clic para ordenar por esta columna
-	Like {name}	Al estilo de {name}
 	{done} of {total}	{done} de {total}
 	Downloading	Descargando
 	Verifying checksum…	Verificando la suma de comprobación…
@@ -238,15 +202,10 @@ month	Dec	dic.
 	Checking for updates…	Buscando actualizaciones…
 	Downloads the new version, replaces this one and opens it again	Descarga la versión nueva, reemplaza esta y vuelve a abrirla
 	Couldn't check for updates: {f}	No se pudieron buscar actualizaciones: {f}
-	Website (coming soon)	Sitio web (próximamente)
 	GitHub repository	Repositorio en GitHub
 	Open3D	Open3D
 	Update 1 app	Actualizar 1 aplicación
 	Update all ({count})	Actualizar todas ({count})
-	⊞  Grid	⊞  Cuadrícula
-	☰  Table	☰  Tabla
-	🔍  Search apps	🔍  Buscar aplicaciones
-	{name} {version}	{name} {version}
 	Match system	Igual que el sistema
 	Dark	Oscuro
 	Light	Claro
@@ -296,47 +255,6 @@ filter	Installed	Instaladas
 @msg	{name} was installed from the {repo} repository or the AUR ({pkg}). Update it with your AUR helper (for example: yay -S {pkg}) or sudo pacman -Syu	{name} se instaló desde el repositorio {repo} o AUR ({pkg}). Actualízala con tu asistente de AUR (por ejemplo: yay -S {pkg}) o con sudo pacman -Syu
 @msg	{name} was installed from the AUR ({pkg}). Update it with {cmd}	{name} se instaló desde AUR ({pkg}). Actualízala con {cmd}
 @msg	{name} was installed from the AUR ({pkg}). Update it with your AUR helper (for example: yay -S {pkg})	{name} se instaló desde AUR ({pkg}). Actualízala con tu asistente de AUR (por ejemplo: yay -S {pkg})
-@id	app.install	Instalar
-@id	app.update	Actualizar a {v}
-@id	app.open	Abrir
-@id	app.download	Descargar para {os}
-@id	app.reveal	Mostrar en el Finder
-@id	app.reinstall	Reinstalar
-@id	app.uninstall	Desinstalar…
-@id	app.notes	Notas de la versión
-@id	app.website	Sitio web
-@id	app.github	Repositorio en GitHub
-@id	app.releases	Todas las versiones
-@id	launcher.update	Actualizar y reiniciar
-@id	launcher.download	Descargar
-@id	launcher.notes	Novedades
-@id	launcher.dismiss	Descartar
-@id	settings.open	Ajustes
-@id	settings.quit	Salir de Open3D Launcher
-@id	view.grid	Cuadrícula
-@id	view.table	Tabla
-@id	filter.all	Todas
-@id	filter.installed	Instaladas
-@id	filter.updates	Actualizaciones
-@id	filter.notinstalled	No instaladas
-@id	sort.suite	Orden de la suite
-@id	sort.name	Nombre
-@id	sort.inspired	Inspirada en
-@id	sort.status	Estado
-@id	sort.installed	Versión instalada
-@id	sort.latest	Última versión
-@id	sort.released	Publicación más reciente
-@id	help.github	GitHub
-@id	help.website	Sitio web
-@id	update.check	Buscar actualizaciones
-@id	update.check_auto	Buscar actualizaciones automáticamente
-@id	update.notify	Avisarme cuando una aplicación instalada tenga una actualización
-@id	update.prereleases	Incluir versiones preliminares (betas y versiones candidatas)
-@id	linux.preferred_kind	Instalar las aplicaciones nuevas como
-@id	tray.close_to_tray	Seguir abierto en la bandeja del sistema al cerrar la ventana
-@id	tray.show_on_current_desktop	Mostrar la ventana en el escritorio actual
-@id	tray.login_item	Abrir Open3D Launcher al iniciar sesión
-@id	appearance.theme	Apariencia
 	Show Open3D Launcher	Mostrar Open3D Launcher
 	Check for Updates	Buscar actualizaciones
 	Visit the Open3D page	Visitar la página de Open3D
@@ -345,21 +263,12 @@ filter	Installed	Instaladas
 @plural	Open3D Launcher · {n} update available|Open3D Launcher · {n} updates available	Open3D Launcher · {n} actualización disponible|Open3D Launcher · {n} actualizaciones disponibles
 
 	Download size: {size}	Tamaño de descarga: {size}
-	Install folder	Carpeta de instalación
-	Default install folder	Carpeta de instalación predeterminada
 	System default	Predeterminada del sistema
-	Browse…	Examinar…
-	Use default	Usar predeterminada
-	New installs use this folder. Updates stay in their current location.	Las nuevas instalaciones usan esta carpeta. Las actualizaciones conservan su ubicación actual.
-	Custom folders use AppImage on Linux.	Las carpetas personalizadas usan AppImage en Linux.
-	On Linux, custom folders use AppImage format.	Las carpetas personalizadas usan AppImage en Linux.
-	The system manages install locations here.	El sistema gestiona las ubicaciones de instalación aquí.
 @msg	couldn't use install folder {path}: {reason}	no se pudo usar la carpeta de instalación {path}: {reason}
 @msg	this release has no AppImage for a custom install folder	esta versión no tiene un AppImage para una carpeta de instalación personalizada
 @msg	custom install folders aren't supported on this system	este sistema no admite carpetas de instalación personalizadas
 @msg	{path} already exists and wasn't installed by Open3D Launcher	{path} ya existe y no fue instalado por Open3D Launcher
 @msg	couldn't move {path} to Trash ({reason}). Remove it in Finder instead.	no se pudo mover {path} a la Papelera ({reason}). Elimínalo desde Finder.
-	Apps are placed inside this folder.	Las aplicaciones se guardan dentro de esta carpeta.
 	Replace what's there?	¿Reemplazar lo que hay?
 	{path} already exists. Installing {name} will overwrite it.	{path} ya existe. Instalar {name} lo sobrescribirá.
 	Replace	Reemplazar
@@ -387,10 +296,6 @@ column	Author	Autor
 	Your files may not open in older versions.	Es posible que tus archivos no se abran en versiones antiguas.
 	Enable automatic installs in Settings to follow new nightly builds.	Activa las instalaciones automáticas en Ajustes para recibir las nuevas versiones nocturnas.
 	Hide community apps	Ocultar aplicaciones de la comunidad
-	Advanced	Avanzado
-	Migrate Flatpak bundles to Open3D OCI (experimental)	Migrar paquetes Flatpak a Open3D OCI (experimental)
-	On update, switch first party apps when the matching package is available. Otherwise, keep using bundles.	Al actualizar, migrar las aplicaciones de Open3D si está disponible el paquete correspondiente. De lo contrario, seguir usando paquetes independientes.
-	The OCI repository is a preview with GPG verification disabled.	El repositorio OCI es una versión preliminar con la verificación GPG desactivada.
 opentools	Tool hub for 3ds Max	Centro de herramientas para 3ds Max
 opentools	Everyday 3ds Max tools in one install.	Las herramientas de 3ds Max de cada día, en una sola instalación.
 opentools	OpenTools gathers scene checks and repairs, asset, proxy and XRef managers, modeling, material and clipboard tools in one dockable panel, a searchable command palette and macros you can bind to hotkeys.	OpenTools reúne comprobaciones y reparaciones de escena, gestores de recursos, proxies y XRefs, y herramientas de modelado, materiales y portapapeles en un panel acoplable, una paleta de comandos con búsqueda y macros que puedes asignar a atajos de teclado.

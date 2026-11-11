@@ -79,10 +79,7 @@ fn no_duplicate_keys() {
 #[test]
 fn placeholders_match_in_translation() {
     for lang in catalogs() {
-        for (line, context, source, translation) in rows(lang) {
-            if context == "@id" {
-                continue; // keyed by id: the English label isn't in the row
-            }
+        for (line, _, source, translation) in rows(lang) {
             // Translations may reorder placeholders, but must keep each one.
             let (src, tgt) = (placeholders(source), placeholders(translation));
             assert_eq!(src, tgt, "{} line {line}: placeholders differ: {source:?} -> {translation:?}", lang.code);
@@ -227,12 +224,11 @@ fn spanish_locales_and_plurals_work() {
 #[test]
 fn parse_rows_of_every_kind() {
     let cat = Catalog::parse(
-        "# comment\n\thello\tworld\nmenu\tOpen\tОткрыть\n@id\tfile.open\tОткрыть файл\n@plural\t{n} file|{n} files\t{n} файл|{n} файла|{n} файлов\n\
+        "# comment\n\thello\tworld\nmenu\tOpen\tОткрыть\n@plural\t{n} file|{n} files\t{n} файл|{n} файла|{n} файлов\n\
          @plural\t{n} app|{n} apps\t{n} 个应用\nbroken row\n",
     );
     assert_eq!(cat.plain("hello"), Some("world"));
     assert_eq!(cat.contextual("menu", "Open"), Some("Открыть"));
-    assert_eq!(cat.id("file.open"), Some("Открыть файл"));
     assert_eq!(cat.plural("{n} file|{n} files", 0), Some("{n} файл"));
     assert_eq!(cat.plural("{n} file|{n} files", 2), Some("{n} файлов"));
     // One form serves every count.

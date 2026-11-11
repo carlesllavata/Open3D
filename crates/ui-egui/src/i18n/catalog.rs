@@ -4,7 +4,6 @@
 //! Format (one entry per line):
 //!   context<TAB>source<TAB>translation
 //! - Empty context = plain UI string (`tl!`, `t`).
-//! - `@id` context = keyed by command id (`tr_id`).
 //! - `@plural` context = plural forms: the English `one|other` key, and the language's forms
 //!   separated by `|` (one form for a language whose nouns don't inflect for number, up to
 //!   three: `one|few|many` for Russian, Ukrainian and Polish).
@@ -25,8 +24,6 @@ pub struct Catalog {
     plain: HashMap<String, String>,
     /// Contextual strings: context -> (English -> translation).
     contextual: HashMap<String, HashMap<String, String>>,
-    /// Command-id keyed strings: id -> translation.
-    by_id: HashMap<String, String>,
     /// Plural forms: English "one|other" -> the language's forms.
     plural: HashMap<String, Vec<String>>,
     /// Messages: English message or template -> translation.
@@ -118,7 +115,6 @@ impl Catalog {
             let (context, source_text, translation) = (unescape(context), unescape(source_text), unescape(translation));
             let duplicate = match context.as_str() {
                 "" => cat.plain.insert(source_text.clone(), translation).is_some(),
-                "@id" => cat.by_id.insert(source_text.clone(), translation).is_some(),
                 "@plural" => {
                     let forms: Vec<String> = translation.split('|').map(str::to_string).collect();
                     if forms.len() > 3 {
@@ -155,11 +151,6 @@ impl Catalog {
     /// Look up a contextual string.
     pub fn contextual(&self, context: &str, s: &str) -> Option<&str> {
         self.contextual.get(context)?.get(s).map(String::as_str)
-    }
-
-    /// Look up a command-id keyed string.
-    pub fn id(&self, id: &str) -> Option<&str> {
-        self.by_id.get(id).map(String::as_str)
     }
 
     /// Look up plural forms for an English "one|other" key; the form at `index` (0 = one).

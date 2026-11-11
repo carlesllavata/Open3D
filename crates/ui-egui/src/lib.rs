@@ -41,6 +41,6 @@ mod widgets;
 pub use app::{Host, LauncherUi, TitleBar};
 pub use i18n::{
     Lang, LangInfo, current, detect_system_lang_in_background, fmt, has, lang_from_tag, message, msg, set_current, set_system_locales, system_lang,
-    t, t_id, tn, tr, tr_ctx, tr_id, trn,
+    t, tn, tr, tr_ctx, trn,
 };
 pub use settings::Settings;
