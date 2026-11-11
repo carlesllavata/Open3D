@@ -34,7 +34,44 @@ title = "Command palette"
 text = "Find and run any tool by typing its name."
 [[apps.details.features]]
 title = "Scene checks"
-text = "Forensic finds and repairs common scene problems."
+text = "The Auditor finds and repairs common scene problems."
 [[apps.details.features]]
-title = "Object clipboard"
+title = "Clipboard"
 text = "Copy and paste objects between scenes and computers."
+
+[[apps]]
+color = [77, 163, 255]
+former_bundles = []
+former_ids = []
+former_names = []
+id = "openmanager"
+binary = "openmanager"
+site = "https://github.com/carlesllavata/OpenManager"
+windows_msi_publisher = "Open3D"
+desktop_categories = ["Graphics", "3DGraphics"]
+startup_wm_class = "openmanager"
+icon_url = "https://raw.githubusercontent.com/carlesllavata/Open3D/main/launcher-app-icons/openmanager-b96623a41944ad21522afed11269929d49ac55890cc0947bdd5ba872deebec22.png"
+icon_sha256 = "b96623a41944ad21522afed11269929d49ac55890cc0947bdd5ba872deebec22"
+ink_dark = [130, 190, 255]
+ink_light = [26, 110, 214]
+kind = "official"
+name = "OpenManager"
+publisher = "Open3D"
+repo = "carlesllavata/OpenManager"
+tagline = "Scene setups and batch rendering for 3ds Max"
+[apps.details]
+headline = "Every shot of a scene, one click away."
+about = "OpenManager keeps setups inside your .max file: camera, resolution, frames, sun, dome, environment, layers, objects, lights, output path and render settings. Click a setup and the scene follows; Batch Render renders every ticked setup one after the other.\n\nIt works with Corona and V-Ray, and reads setups made with Pulze Scene Manager."
+platforms = "Windows, 3ds Max 2025 and later"
+[[apps.details.features]]
+title = "Setups"
+text = "Camera, lights, layers, objects and render settings saved per shot, inside the .max file."
+[[apps.details.features]]
+title = "Batch render"
+text = "Render every ticked setup in a row, saving each output where the setup says."
+[[apps.details.features]]
+title = "Pulze setups"
+text = "Setups made with Pulze Scene Manager are read and converted."
+[[apps.details.features]]
+title = "Corona and V-Ray"
+text = "Render settings, overrides and the Corona post-production travel with each setup."
