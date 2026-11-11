@@ -114,17 +114,23 @@ def changelog_section(path, version):
     return text
 
 
-def zip_bundle(bundle_dir, bundle_name, zip_path):
+def zip_bundle(bundle_dir, bundle_name, zip_path, license_file=None):
+    """Zips the bundle folder. The app's LICENSE goes in as `<bundle>/LICENSE` (the GPL asks for its text to
+    travel with every copy) unless the bundle already has one."""
     files = sorted(
         p for p in bundle_dir.rglob("*")
         if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"
     )
     if zip_path.exists():
         zip_path.unlink()
+    count = len(files)
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
         for f in files:
             z.write(f, bundle_name + "/" + f.relative_to(bundle_dir).as_posix())
-    return len(files)
+        if license_file and license_file.is_file() and not (bundle_dir / "LICENSE").exists():
+            z.write(license_file, bundle_name + "/LICENSE")
+            count += 1
+    return count
 
 
 def sha256(path):
@@ -183,7 +189,10 @@ def publish(app_id, version=None, dry_run=False, push=True, repo=PUBLIC_REPO):
 
         DIST.mkdir(exist_ok=True)
         zip_path = DIST / zip_name
-        count = zip_bundle(bundle_dir, app["bundle"], zip_path)
+        license_file = work / "LICENSE"
+        if not license_file.is_file():
+            raise PublishError("No LICENSE at tag %s: every Open3D app ships its license" % tag)
+        count = zip_bundle(bundle_dir, app["bundle"], zip_path, license_file)
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
