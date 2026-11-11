@@ -2,8 +2,10 @@
 
 What each version of the Open3D Launcher adds, newest first.
 
-## In development
+## 0.2.1 — 11 November 2026
 
+- **OpenManager is in the launcher.** Install and update OpenManager (scene setups and batch rendering)
+  from the launcher, like OpenTools.
 - **A warning for duplicate copies of an app.** When 3ds Max's plug-in folder holds another copy of an
   app, such as a development bundle (`OpenTools-dev.bundle` next to `OpenTools.bundle`), the app's card
   names it and reminds you that 3ds Max loads only one of them.

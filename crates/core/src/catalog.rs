@@ -158,6 +158,7 @@ pub fn app_icon_png(id: &str) -> Option<&'static [u8]> {
     }
     Some(match id {
         "opentools" => include_bytes!("../../../assets/app-icons/opentools.png"),
+        "openmanager" => include_bytes!("../../../assets/app-icons/openmanager.png"),
         _ => return None,
     })
 }
