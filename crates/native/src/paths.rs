@@ -26,35 +26,35 @@ impl Paths {
     }
 
     /// For tests: everything under one folder.
-    pub fn under(root: &std::path::Path) -> Self {
+    pub(crate) fn under(root: &std::path::Path) -> Self {
         Self { data: root.join("data"), cache: root.join("cache") }
     }
 
-    pub fn downloads(&self) -> PathBuf {
+    pub(crate) fn downloads(&self) -> PathBuf {
         self.cache.join("downloads")
     }
 
-    pub fn release_cache(&self) -> PathBuf {
+    pub(crate) fn release_cache(&self) -> PathBuf {
         self.cache.join("releases.json")
     }
 
     /// The last answer from Open3D's release feed, for an instant first paint and as a fallback.
-    pub fn feed_cache(&self) -> PathBuf {
+    pub(crate) fn feed_cache(&self) -> PathBuf {
         self.cache.join("feed.json")
     }
 
     /// How long to hold off calling Open3D's API (after failures or HTTP 429), across restarts.
-    pub fn feed_throttle(&self) -> PathBuf {
+    pub(crate) fn feed_throttle(&self) -> PathBuf {
         self.cache.join("feed-throttle.json")
     }
 
     /// A picture of an app's details page, saved after its first download: under the revision of the
     /// pictures repository it was fetched from, so a new revision never reads an old picture.
-    pub fn screenshot(&self, app: &str, key: &str) -> PathBuf {
+    pub(crate) fn screenshot(&self, app: &str, key: &str) -> PathBuf {
         self.cache.join("screenshots").join(open3d_launcher_core::details::SCREENSHOTS_REV).join(app).join(format!("{key}.jpg"))
     }
 
-    pub fn manifest(&self) -> PathBuf {
+    pub(crate) fn manifest(&self) -> PathBuf {
         self.data.join("installed.json")
     }
 
@@ -64,7 +64,7 @@ impl Paths {
     }
 
     /// Where tarball installs (FreeBSD, Linux without AppImage) are unpacked: `<data>/apps/<app>`.
-    pub fn apps(&self) -> PathBuf {
+    pub(crate) fn apps(&self) -> PathBuf {
         self.data.join("apps")
     }
 }

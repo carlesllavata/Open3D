@@ -5,7 +5,7 @@ use open3d_launcher_core::catalog::{LAUNCHER, LAUNCHER_ID, SuiteApp};
 use open3d_launcher_core::platform::pick_asset;
 use open3d_launcher_core::protocol::VersionTrack;
 use open3d_launcher_core::release::{Asset, Release, choose_version, is_nightly};
-use open3d_launcher_core::{Os, version};
+use open3d_launcher_core::version;
 
 use crate::app::LauncherUi;
 use crate::theme::Tokens;
@@ -209,10 +209,7 @@ impl LauncherUi {
                 && self.has_version_download(&LAUNCHER, release)
                 && ui.link(tl!("Download selected version")).clicked()
             {
-                let url = self
-                    .platform
-                    .and_then(|p| crate::views::launcher_download(release, p, crate::settings::is_flatpak_sandbox()))
-                    .unwrap_or_else(|| release.html_url.clone());
+                let url = self.platform.and_then(|p| crate::views::launcher_download(release, p)).unwrap_or_else(|| release.html_url.clone());
                 widgets::open_external_link(ui.ctx(), &url);
             }
             ui.label(RichText::new(tl!("Older launcher versions require a manual reinstall.")).color(t.muted));
@@ -266,15 +263,19 @@ impl LauncherUi {
         let platform = self.platform?;
         match self.backend.launcher_kind() {
             Some(kind) => pick_asset(r, &[LAUNCHER_ID], platform, &[kind]).map(|(asset, _)| asset),
-            None if self.caps.manage_apps && platform.os == Os::Linux => None,
-            None => crate::views::launcher_asset(r, platform, crate::settings::is_flatpak_sandbox()),
+            None => crate::views::launcher_asset(r, platform),
         }
     }
 
     fn has_version_download(&self, app: &SuiteApp, r: &Release) -> bool {
+        let checked = |asset: &Asset| asset.sha256.is_some() || r.sums_asset().is_some();
+        // The launcher ships an MSI and a portable zip, not a 3ds Max plug-in.
+        if app.id == LAUNCHER_ID {
+            return self.launcher_version_asset(r).is_some_and(checked);
+        }
         let Some(platform) = self.platform else { return false };
         let stems: Vec<&str> = app.stems().collect();
-        pick_asset(r, &stems, platform, platform.download_kinds()).is_some_and(|(asset, _)| asset.sha256.is_some() || r.sums_asset().is_some())
+        pick_asset(r, &stems, platform, platform.download_kinds()).is_some_and(|(asset, _)| checked(asset))
     }
 
     /// The newer release an installed copy is behind without it being an update, for a quiet note

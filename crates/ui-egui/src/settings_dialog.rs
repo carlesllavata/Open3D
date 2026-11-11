@@ -3,7 +3,6 @@
 //! groups of settings in boxes, two columns once the window is wide enough.
 
 use egui::{RichText, Ui, vec2};
-use open3d_launcher_core::{Os, PackageKind};
 
 use crate::app::{Host, LauncherUi};
 use crate::i18n::fmt;
@@ -38,11 +37,6 @@ fn row(ui: &mut Ui, label: &str, control_width: f32, add: &mut dyn FnMut(&mut Ui
             });
         });
     }
-}
-
-fn note(ui: &mut Ui, text: &str) {
-    let t = Tokens::get(ui.ctx());
-    ui.label(RichText::new(text).size(12.0).color(t.muted));
 }
 
 impl LauncherUi {
@@ -116,7 +110,6 @@ impl LauncherUi {
             |ui| {
                 let Ok(mut state) = state.try_borrow_mut() else { return };
                 let (this, host) = &mut *state;
-                this.settings_install(ui, &mut **host);
                 this.settings_background(ui, &mut **host);
                 this.settings_community(ui);
             },
@@ -197,107 +190,6 @@ impl LauncherUi {
                 self.version_combo(ui, launcher_id, &open3d_launcher_core::catalog::LAUNCHER, 200.0, label);
             });
             self.launcher_version_notes(ui);
-        });
-    }
-
-    /// Where apps go and in what format, for the desktop builds that manage installs.
-    fn settings_install(&mut self, ui: &mut Ui, host: &mut dyn Host) {
-        if !self.caps.manage_apps {
-            return;
-        }
-        sheet::panel(ui, tl!("Default install folder"), |ui| {
-            if self.custom_install_folders() {
-                let mut folder = self.settings.install_locations.root.clone().unwrap_or_default();
-                let default = self.suite_default_folder(host);
-                Self::folder_field(ui, &mut folder, default.as_deref(), host);
-                self.settings.install_locations.root = (!folder.is_empty()).then_some(folder);
-                note(ui, tl!("New installs use this folder. Updates stay in their current location."));
-                if self.platform.is_some_and(|p| p.os == Os::Linux) {
-                    note(ui, tl!("On Linux, custom folders use AppImage format."));
-                }
-            } else {
-                ui.label(tl!("The system manages install locations here."));
-            }
-        });
-
-        if self.platform.is_some_and(|p| p.os == Os::Windows) {
-            self.windows_kinds(ui);
-        }
-
-        if self.platform.is_some_and(|p| p.os == Os::Linux) {
-            self.linux_kinds(ui);
-        }
-    }
-
-    /// The Windows install-format chooser: an MSI or a portable ZIP.
-    fn windows_kinds(&mut self, ui: &mut Ui) {
-        sheet::panel(ui, tl!("Installing on Windows"), |ui| {
-            let mut choice = self
-                .settings
-                .preferred_kinds
-                .first()
-                .copied()
-                .filter(|kind| matches!(kind, PackageKind::Msi | PackageKind::PortableZip))
-                .or(Some(PackageKind::Msi));
-            row(ui, tl!("Install new apps as"), 210.0, &mut |ui, label| {
-                let shown = choice.map_or_else(|| crate::i18n::t(PackageKind::Msi.label()), |kind| crate::i18n::t(kind.label()));
-                craft_ui::ComboBox::from_id_salt("windows-kind")
-                    .selected_text(shown)
-                    .width(210.0)
-                    .show_ui(ui, |ui| {
-                        for kind in [PackageKind::Msi, PackageKind::PortableZip] {
-                            ui.selectable_value(&mut choice, Some(kind), crate::i18n::t(kind.label()));
-                        }
-                    })
-                    .response
-                    .labelled_by(label);
-            });
-            self.settings.preferred_kinds = choice.into_iter().collect();
-            note(ui, tl!("Updates always use the format an app was installed with."));
-        });
-    }
-
-    /// The Linux install-format chooser: system packages, Flatpak, AppImage, and the sandbox-only
-    /// tarball, with the format the launcher itself runs with as the default suggestion.
-    fn linux_kinds(&mut self, ui: &mut Ui) {
-        sheet::panel(ui, tl!("Installing on Linux"), |ui| {
-            let is_flatpak = crate::settings::is_flatpak_sandbox();
-            let is_appimage = crate::settings::is_appimage();
-            let default_kind = if is_flatpak {
-                Some(PackageKind::Flatpak)
-            } else if is_appimage {
-                Some(PackageKind::AppImage)
-            } else {
-                None
-            };
-            let mut choice = self.settings.preferred_kinds.first().copied().or(default_kind);
-            row(ui, tl!("Install new apps as"), 210.0, &mut |ui, label| {
-                let default_label = match default_kind {
-                    Some(k) => crate::i18n::t(k.label()),
-                    None => tl!("System package (recommended)"),
-                };
-                let shown = choice.map_or(default_label, |k| crate::i18n::t(k.label()));
-                craft_ui::ComboBox::from_id_salt("kind")
-                    .selected_text(shown)
-                    .width(210.0)
-                    .show_ui(ui, |ui| {
-                        if !is_flatpak && !is_appimage {
-                            ui.selectable_value(&mut choice, None, tl!("System package (recommended)"));
-                        }
-                        for k in [PackageKind::Deb, PackageKind::Rpm, PackageKind::ArchPkg, PackageKind::Flatpak, PackageKind::AppImage] {
-                            ui.selectable_value(&mut choice, Some(k), crate::i18n::t(k.label()));
-                        }
-                        // The tarball is unpacked and run inside the launcher's own sandbox, so it
-                        // is only ever on offer there (as the fallback when the host has no Flatpak).
-                        if is_flatpak {
-                            ui.selectable_value(&mut choice, Some(PackageKind::TarGz), crate::i18n::t(PackageKind::TarGz.label()));
-                        }
-                    })
-                    .response
-                    .labelled_by(label);
-            });
-            self.settings.preferred_kinds = choice.into_iter().collect();
-            note(ui, tl!("Updates always use the format an app was installed with."));
         });
     }
 

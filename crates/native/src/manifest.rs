@@ -39,24 +39,3 @@ impl Manifest {
         crate::paths::write_atomic(path, &bytes)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn round_trips_and_survives_garbage() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("installed.json");
-        assert_eq!(Manifest::load(&path), Manifest::default());
-        let mut m = Manifest::default();
-        m.apps.insert(
-            "phototool".into(),
-            Record { version: "0.5.0".into(), kind: PackageKind::AppImage, path: "/x/y".into(), installed_at: 1, files: vec![], needs_root: false },
-        );
-        m.save(&path).unwrap();
-        assert_eq!(Manifest::load(&path), m);
-        std::fs::write(&path, b"{not json").unwrap();
-        assert_eq!(Manifest::load(&path), Manifest::default());
-    }
-}

@@ -10,23 +10,6 @@ use crate::version::{self, Version};
 pub enum InstallSource {
     /// Installed by this launcher (it keeps a record and can update or remove it).
     Launcher,
-    /// A macOS `.app` the user put in Applications.
-    MacApp,
-    /// A Windows Installer (MSI) install.
-    Msi,
-    /// A Debian package.
-    Deb,
-    /// An RPM package.
-    Rpm,
-    /// An Arch Linux package: the release's own (`io.github.carlesllavata.<app>`), or `<app>`, `<app>-bin`
-    /// or `<app>-git` from the AUR or a repository.
-    Pacman,
-    /// A Flatpak.
-    Flatpak,
-    /// An AppImage file found on disk.
-    AppImage,
-    /// A binary found on `PATH` or in a system prefix.
-    Binary,
     /// Open3D: a 3ds Max plug-in bundle found in `ApplicationPlugins` (copied there by hand).
     Bundle,
 }
@@ -35,14 +18,6 @@ impl InstallSource {
     pub fn label(self) -> &'static str {
         match self {
             Self::Launcher => "Open3D Launcher",
-            Self::MacApp => "Applications folder",
-            Self::Msi => "Windows Installer",
-            Self::Deb => "Debian package",
-            Self::Rpm => "RPM package",
-            Self::Pacman => "Arch package",
-            Self::Flatpak => "Flatpak",
-            Self::AppImage => "AppImage",
-            Self::Binary => "System binary",
             Self::Bundle => "3ds Max plug-in",
         }
     }
@@ -50,7 +25,7 @@ impl InstallSource {
     /// Whether the launcher may replace or remove this copy itself. Packages owned by a system
     /// package manager (deb, rpm, Flatpak) are updated through that manager instead.
     pub fn launcher_can_update(self) -> bool {
-        matches!(self, Self::Launcher | Self::MacApp | Self::Msi | Self::AppImage | Self::Bundle)
+        matches!(self, Self::Launcher | Self::Bundle)
     }
 }
 

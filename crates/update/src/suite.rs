@@ -21,6 +21,3 @@ pub const SUITE: [App; 1] = [OPENTOOLS];
 pub fn by_id(id: &str) -> Option<&'static App> {
     SUITE.iter().find(|a| a.id == id)
 }
-
-#[cfg(test)]
-mod tests {}

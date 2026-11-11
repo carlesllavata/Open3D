@@ -36,18 +36,10 @@ use crate::process;
 /// How this running launcher was installed.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Install {
-    /// The `Open3D Launcher.app` bundle.
-    MacApp(PathBuf),
     /// The per-user Windows Installer package; the exe.
     Msi(PathBuf),
     /// The Windows portable zip; the exe (with `portable.txt` beside it).
     Portable(PathBuf),
-    /// The AppImage file.
-    AppImage(PathBuf),
-    /// A Debian or RPM package; the binary.
-    Package(PackageKind, PathBuf),
-    /// A Flatpak application.
-    Flatpak,
     /// A standalone executable or unpacked tree.
     Standalone(PathBuf),
 }
@@ -55,12 +47,8 @@ pub enum Install {
 impl Install {
     fn kind(&self) -> PackageKind {
         match self {
-            Self::MacApp(_) => PackageKind::Dmg,
             Self::Msi(_) => PackageKind::Msi,
             Self::Portable(_) => PackageKind::PortableZip,
-            Self::AppImage(_) => PackageKind::AppImage,
-            Self::Package(kind, _) => *kind,
-            Self::Flatpak => PackageKind::Flatpak,
             Self::Standalone(_) => {
                 #[cfg(windows)]
                 {
@@ -675,7 +663,6 @@ fn windows_precheck(app: &App, install: &Install, paths: &Paths, download: &Path
         Install::Portable(exe) | Install::Standalone(exe) => {
             signed_like(app, &me, exe).and_then(|()| own_executable(app, exe)).and_then(|()| same_cache_as_helper(app, paths, exe))
         }
-        _ => Ok(()),
     }
 }
 
@@ -1669,34 +1656,6 @@ mod tests {
     }
 
     #[test]
-    fn the_launcher_picks_its_own_release_files() {
-        let names = [
-            "open3d-launcher-0.2.0-macos-universal.dmg",
-            "open3d-launcher-0.2.0-windows-x64.msi",
-            "open3d-launcher-0.2.0-windows-x64-portable.zip",
-            "open3d-launcher-0.2.0-linux-x86_64.AppImage",
-            "open3d-launcher-0.2.0-linux-x86_64.deb",
-            "open3d-launcher-0.2.0-linux-x86_64.flatpak",
-            "open3d-launcher-0.2.0-linux-x86_64.pkg.tar.zst",
-            "open3d-launcher-web-0.2.0.zip",
-        ];
-        let release = Release {
-            assets: names.iter().map(|n| crate::release::Asset { name: (*n).into(), size: 1, url: String::new(), sha256: None }).collect(),
-            ..Release::default()
-        };
-        use crate::{Arch, Os};
-        let pick =
-            |os, kind| pick_asset(&release, &[crate::suite::LAUNCHER.id], Platform { os, arch: Arch::X64 }, &[kind]).map(|(a, _)| a.name.clone());
-        assert_eq!(pick(Os::MacOs, Install::MacApp(PathBuf::new()).kind()).as_deref(), Some(names[0]));
-        assert_eq!(pick(Os::Windows, Install::Msi(PathBuf::new()).kind()).as_deref(), Some(names[1]));
-        assert_eq!(pick(Os::Windows, Install::Portable(PathBuf::new()).kind()).as_deref(), Some(names[2]));
-        assert_eq!(pick(Os::Linux, Install::AppImage(PathBuf::new()).kind()).as_deref(), Some(names[3]));
-        assert_eq!(pick(Os::Linux, Install::Package(PackageKind::Deb, PathBuf::new()).kind()).as_deref(), Some(names[4]));
-        assert_eq!(pick(Os::Linux, Install::Flatpak.kind()).as_deref(), Some(names[5]));
-        assert_eq!(pick(Os::Linux, Install::Package(PackageKind::ArchPkg, PathBuf::new()).kind()).as_deref(), Some(names[6]));
-    }
-
-    #[test]
     fn a_failed_step_that_removed_the_app_starts_nothing_and_keeps_its_message() {
         assert!(restarts(true, true, true));
         assert!(restarts(true, true, false));
@@ -1929,49 +1888,5 @@ mod tests {
             assert!(!done_file(&paths).exists(), "exits {exits}, zip {zip_ok}");
             assert!(matches!(take_outcome(&paths, "0.2.0"), Some(Outcome::Failed(_))), "exits {exits}, zip {zip_ok}");
         }
-    }
-
-    #[test]
-    fn update_refuses_to_downgrade_when_release_is_older() {
-        let dir = tempfile::tempdir().unwrap();
-        let paths = Paths::under(dir.path());
-        let http = Http::new(crate::TEST_AGENT).unwrap();
-        let mut phase = |_| ();
-        let last = || Ok(());
-        let stop = Stop::default();
-        let release = Release {
-            version: version::parse("0.1.0"),
-            tag: "v0.1.0".into(),
-            assets: vec![crate::release::Asset {
-                name: "open3d-launcher-0.1.0-linux-x86_64.AppImage".into(),
-                size: 1,
-                url: String::new(),
-                sha256: None,
-            }],
-            ..Release::default()
-        };
-        let install = Install::AppImage(dir.path().join("launcher.AppImage"));
-        use crate::{Arch, Os};
-        let platform = Platform { os: Os::Linux, arch: Arch::X64 };
-        let result = update(&crate::suite::LAUNCHER, &install, &release, platform, &http, &paths, &stop, &mut phase, &last, Some("0.2.0"));
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("is not newer than currently running version"));
-    }
-
-    #[test]
-    fn a_build_from_main_refuses_to_install_the_release_it_already_contains() {
-        let dir = tempfile::tempdir().unwrap();
-        let paths = Paths::under(dir.path());
-        let http = Http::new(crate::TEST_AGENT).unwrap();
-        let mut phase = |_| ();
-        let last = || Ok(());
-        let stop = Stop::default();
-        let release = Release { version: version::parse("0.2.0"), tag: "v0.2.0".into(), ..Release::default() };
-        let install = Install::AppImage(dir.path().join("launcher.AppImage"));
-        use crate::{Arch, Os};
-        let platform = Platform { os: Os::Linux, arch: Arch::X64 };
-        let running = Some("0.2.0-integration.20261029.f5b3f123");
-        let result = update(&crate::suite::LAUNCHER, &install, &release, platform, &http, &paths, &stop, &mut phase, &last, running);
-        assert!(result.unwrap_err().contains("is not newer than currently running version"));
     }
 }

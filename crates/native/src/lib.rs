@@ -9,32 +9,31 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
 pub mod backend;
-pub mod detect;
-pub mod feed_throttle;
-pub mod hosted_catalog;
-pub mod http;
+mod detect;
+mod feed_throttle;
+mod hosted_catalog;
+mod http;
 pub mod install;
 pub mod login;
-pub mod manifest;
-pub mod max_bundle;
+mod manifest;
+mod max_bundle;
 #[cfg(any(windows, test))]
 mod msi_context;
-pub mod packages;
+mod packages;
 pub mod paths;
-pub mod pins;
+mod pins;
 #[cfg(windows)]
-pub mod portable;
+mod portable;
 pub mod process;
 pub mod proxy;
-pub mod queue;
-pub mod screenshots;
+mod screenshots;
 pub mod self_update;
 pub mod single_instance;
-pub mod source;
+mod source;
 
 pub use backend::NativeBackend;
 
 /// Unix seconds now.
-pub fn now() -> i64 {
+pub(crate) fn now() -> i64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
 }

@@ -17,12 +17,12 @@ use crate::paths::Paths;
 pub use craft_update::self_update::{FINISH_FLAG, Install, PRETEND_VAR, is_self_updating};
 
 /// The version this launcher counts as (see [`PRETEND_VAR`]).
-pub fn current_version() -> Option<Version> {
+pub(crate) fn current_version() -> Option<Version> {
     craft_update::self_update::current_version(&craft_update::suite::LAUNCHER, env!("CARGO_PKG_VERSION"))
 }
 
 /// How this copy is installed, if it's one the launcher knows how to replace.
-pub fn current() -> Option<Install> {
+pub(crate) fn current() -> Option<Install> {
     craft_update::self_update::current(&craft_update::suite::LAUNCHER)
 }
 
@@ -51,21 +51,17 @@ fn to_update_platform(platform: Platform) -> craft_update::Platform {
     craft_update::Platform {
         os: match platform.os {
             open3d_launcher_core::Os::Windows => craft_update::Os::Windows,
-            open3d_launcher_core::Os::MacOs => craft_update::Os::MacOs,
-            open3d_launcher_core::Os::Linux => craft_update::Os::Linux,
-            open3d_launcher_core::Os::FreeBsd => craft_update::Os::FreeBsd,
         },
         arch: match platform.arch {
             open3d_launcher_core::Arch::X64 => craft_update::Arch::X64,
             open3d_launcher_core::Arch::Arm64 => craft_update::Arch::Arm64,
             open3d_launcher_core::Arch::X86 => craft_update::Arch::X86,
-            open3d_launcher_core::Arch::Riscv64 => craft_update::Arch::Riscv64,
         },
     }
 }
 
 /// Whether `release` is the version this launcher just updated itself to.
-pub fn just_updated_to(paths: &Paths, release: &Release) -> bool {
+pub(crate) fn just_updated_to(paths: &Paths, release: &Release) -> bool {
     let update_paths = to_update_paths(paths);
     let update_release = to_update_release(release);
     craft_update::self_update::just_updated_to(&update_paths, &update_release)
@@ -81,7 +77,7 @@ pub fn take_failure(paths: &Paths) -> Option<String> {
 /// it once this process has exited. On success the caller must quit promptly. `last` is called
 /// once the download is ready and returns when the launcher may replace itself and restart.
 #[allow(clippy::too_many_arguments)]
-pub fn update(
+pub(crate) fn update(
     install: &Install,
     release: &Release,
     platform: Platform,
@@ -121,26 +117,11 @@ pub fn update(
 
 /// The package format updating `install` downloads: the one it was installed from. Mirrors the
 /// private `Install::kind` in `craft_update::self_update`, which picks the update's asset by it.
-pub fn kind(install: &Install) -> PackageKind {
+pub(crate) fn kind(install: &Install) -> PackageKind {
     match install {
-        Install::MacApp(_) => PackageKind::Dmg,
         Install::Msi(_) => PackageKind::Msi,
         Install::Portable(_) => PackageKind::PortableZip,
-        Install::AppImage(_) => PackageKind::AppImage,
-        Install::Package(kind, _) => match kind {
-            craft_update::PackageKind::Msi => PackageKind::Msi,
-            craft_update::PackageKind::PortableZip => PackageKind::PortableZip,
-            craft_update::PackageKind::Dmg => PackageKind::Dmg,
-            craft_update::PackageKind::AppImage => PackageKind::AppImage,
-            craft_update::PackageKind::Deb => PackageKind::Deb,
-            craft_update::PackageKind::Rpm => PackageKind::Rpm,
-            craft_update::PackageKind::ArchPkg => PackageKind::ArchPkg,
-            craft_update::PackageKind::Flatpak => PackageKind::Flatpak,
-            craft_update::PackageKind::TarGz => PackageKind::TarGz,
-        },
-        Install::Flatpak => PackageKind::Flatpak,
-        Install::Standalone(_) if cfg!(windows) => PackageKind::PortableZip,
-        Install::Standalone(_) => PackageKind::TarGz,
+        Install::Standalone(_) => PackageKind::PortableZip,
     }
 }
 
@@ -156,18 +137,5 @@ mod tests {
     #[test]
     fn a_development_build_does_not_update_itself() {
         assert_eq!(current(), None);
-    }
-
-    #[test]
-    fn an_update_downloads_the_format_the_copy_was_installed_from() {
-        use std::path::PathBuf;
-        assert_eq!(kind(&Install::Msi(PathBuf::new())), PackageKind::Msi);
-        assert_eq!(kind(&Install::Portable(PathBuf::new())), PackageKind::PortableZip);
-        assert_eq!(kind(&Install::MacApp(PathBuf::new())), PackageKind::Dmg);
-        assert_eq!(kind(&Install::AppImage(PathBuf::new())), PackageKind::AppImage);
-        assert_eq!(kind(&Install::Package(craft_update::PackageKind::Rpm, PathBuf::new())), PackageKind::Rpm);
-        assert_eq!(kind(&Install::Flatpak), PackageKind::Flatpak);
-        let standalone = if cfg!(windows) { PackageKind::PortableZip } else { PackageKind::TarGz };
-        assert_eq!(kind(&Install::Standalone(PathBuf::new())), standalone);
     }
 }

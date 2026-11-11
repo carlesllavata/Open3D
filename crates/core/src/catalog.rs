@@ -73,24 +73,6 @@ impl SuiteApp {
         self.site.map_or_else(|| format!("https://github.com/carlesllavata/{}", self.id), str::to_string)
     }
 
-    /// Whether the launcher installs this app from a `kind` package.
-    pub fn installs(&self, kind: crate::PackageKind) -> bool {
-        kind != crate::PackageKind::Dmg || self.mac_team.is_some()
-    }
-
-    /// Whether this app runs on the given operating system.
-    pub fn runs_on(&self, os: crate::Os) -> bool {
-        match os {
-            crate::Os::FreeBsd => true,
-            _ => true,
-        }
-    }
-
-    /// Bundle ids this app may be installed under, current first.
-    pub fn bundle_ids(&self) -> impl Iterator<Item = String> + '_ {
-        std::iter::once(self.bundle_id()).chain(self.former_bundles.iter().map(|b| b.to_string()))
-    }
-
     /// Asset stems this app's releases may use, current first.
     pub fn stems(&self) -> impl Iterator<Item = &'static str> + '_ {
         std::iter::once(self.id).chain(self.former_ids.iter().copied())
@@ -104,14 +86,6 @@ impl SuiteApp {
     /// The primary `.app` bundle stem on macOS (`Open3D` or `PhotoTool`).
     pub fn mac_bundle_name(&self) -> &'static str {
         self.mac_bundle_name.unwrap_or(self.name)
-    }
-
-    /// Bundle stems a macOS `.app` may carry (`Open3D` and `Open3D Studio`), release name first.
-    pub fn mac_bundle_names(&self) -> impl Iterator<Item = &'static str> + '_ {
-        let primary = self.mac_bundle_name();
-        std::iter::once(primary)
-            .chain(std::iter::once(self.name).filter(move |&n| n != primary))
-            .chain(self.former_names.iter().copied().filter(move |&n| n != primary && n != self.name))
     }
 
     pub fn by_id(id: &str) -> Option<&'static SuiteApp> {

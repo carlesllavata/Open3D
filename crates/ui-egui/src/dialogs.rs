@@ -3,7 +3,6 @@
 
 use crate::i18n::fmt;
 use egui::{RichText, vec2};
-use open3d_launcher_core::Os;
 use open3d_launcher_core::protocol::Command;
 
 use crate::app::{Dialog, Host, LauncherUi};
@@ -34,7 +33,6 @@ impl LauncherUi {
         let response = match &mut dialog {
             Dialog::Notes(id) => modal.show(ctx, |ui| close = self.notes_dialog(ui, id)),
             Dialog::ConfirmUninstall(id) => modal.show(ctx, |ui| close = self.uninstall_dialog(ui, id)),
-            Dialog::Install { app, folder } => modal.show(ctx, |ui| close = self.install_dialog(ui, app, folder, host)),
             Dialog::Replace { app, path } => modal.show(ctx, |ui| close = self.replace_dialog(ui, app, path)),
             Dialog::Settings => modal.show(ctx, |ui| close = self.settings_dialog(ui, host)),
             Dialog::LauncherUpdate(r) => modal.show(ctx, |ui| close = self.launcher_update_dialog(ui, r)),
@@ -177,10 +175,7 @@ impl LauncherUi {
                         close = true;
                     }
                 } else {
-                    let url = self
-                        .platform
-                        .and_then(|p| crate::views::launcher_download(r, p, crate::settings::is_flatpak_sandbox()))
-                        .unwrap_or_else(|| r.html_url.clone());
+                    let url = self.platform.and_then(|p| crate::views::launcher_download(r, p)).unwrap_or_else(|| r.html_url.clone());
                     if widgets::button(ui, tl!("Download"), Kind::Primary, 0.0).clicked() {
                         widgets::open_external_link(ui.ctx(), &url);
                         close = true;
@@ -202,16 +197,7 @@ impl LauncherUi {
         let t = Tokens::get(ui.ctx());
         ui.set_width(420.0);
         Self::title(ui, crate::icons::app(id), &fmt(tl!("Uninstall {name}?"), &[("name", entry.app.name)]), "");
-        let how = match entry.installed.as_ref().map(|i| i.source) {
-            Some(open3d_launcher_core::InstallSource::MacApp) => tl!("The app will be moved to the Trash. Your documents and settings stay."),
-            Some(open3d_launcher_core::InstallSource::Msi) => {
-                tl!("Windows will remove it like any installed program. Your documents and settings stay.")
-            }
-            Some(
-                open3d_launcher_core::InstallSource::Deb | open3d_launcher_core::InstallSource::Rpm | open3d_launcher_core::InstallSource::Pacman,
-            ) => tl!("Your system's package manager will remove it, and may ask for your password. Your documents and settings stay."),
-            _ => tl!("The app will be removed. Your documents and settings stay."),
-        };
+        let how = tl!("The app will be removed. Your documents and settings stay.");
         ui.label(RichText::new(how).color(t.muted));
         ui.add_space(20.0);
         let mut close = false;
@@ -256,58 +242,5 @@ impl LauncherUi {
             });
         });
         close
-    }
-
-    /// Lets the user choose this app's install folder and returns `true` when the dialog should
-    /// close, including when the app entry is gone. An empty field removes the per-app override, a
-    /// non-empty one persists it, and any changed configuration is sent before the install is queued. The path
-    /// itself is not validated here.
-    fn install_dialog(&mut self, ui: &mut egui::Ui, id: &str, folder: &mut String, host: &mut dyn Host) -> bool {
-        let Some(app) = self.entry(id).map(|e| e.app) else { return true };
-        ui.set_width(440.0f32.min(ui.ctx().content_rect().width() - 80.0));
-        Self::title(ui, None, app.name, tl!("Install folder"));
-        let default = self.settings.install_locations.root.clone().or_else(|| self.default_folder_for(id, host));
-        Self::folder_field(ui, folder, default.as_deref(), host);
-        if self.platform.is_some_and(|p| p.os == Os::Linux) {
-            ui.label(tl!("Custom folders use AppImage on Linux."));
-        }
-        ui.add_space(14.0);
-        let mut close = false;
-        ui.horizontal(|ui| {
-            if widgets::button(ui, tl!("Install"), Kind::Primary, 100.0).clicked() {
-                if folder.is_empty() {
-                    self.settings.install_locations.per_app.remove(id);
-                } else {
-                    self.settings.install_locations.per_app.insert(id.to_string(), folder.clone());
-                }
-                self.configure();
-                self.act_command(Command::Install { app: id.to_string() });
-                close = true;
-            }
-            close |= widgets::button(ui, tl!("Cancel"), Kind::Secondary, 90.0).clicked();
-        });
-        close
-    }
-
-    pub(crate) fn folder_field(ui: &mut egui::Ui, folder: &mut String, default: Option<&str>, host: &mut dyn Host) {
-        let label = ui.label(tl!("Install folder"));
-        ui.add(
-            egui::TextEdit::singleline(folder)
-                .id_salt("install_folder")
-                .hint_text(default.unwrap_or(tl!("System default")))
-                .desired_width(f32::INFINITY),
-        )
-        .labelled_by(label.id);
-        ui.label(tl!("Apps are placed inside this folder."));
-        ui.horizontal(|ui| {
-            if widgets::button(ui, tl!("Browse…"), Kind::Secondary, 100.0).clicked()
-                && let Some(selected) = host.pick_folder(if folder.is_empty() { default } else { Some(folder.as_str()) })
-            {
-                *folder = selected;
-            }
-            if widgets::button(ui, tl!("Use default"), Kind::Secondary, 120.0).clicked() {
-                folder.clear();
-            }
-        });
     }
 }

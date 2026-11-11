@@ -248,12 +248,7 @@ impl LauncherUi {
     fn neighbour_apps(&self, id: &str) -> (Option<String>, Option<String>) {
         let mut ids: Vec<&str> = self.visible_ids().into_iter().filter(|i| AppDetails::by_id(i).is_some()).collect();
         if !ids.contains(&id) {
-            ids = open3d_launcher_core::hosted_catalog::apps()
-                .iter()
-                .filter(|a| self.platform.is_none_or(|p| a.runs_on(p.os)))
-                .map(|a| a.id)
-                .filter(|i| AppDetails::by_id(i).is_some())
-                .collect();
+            ids = open3d_launcher_core::hosted_catalog::apps().iter().map(|a| a.id).filter(|i| AppDetails::by_id(i).is_some()).collect();
         }
         let Some(at) = ids.iter().position(|i| *i == id) else { return (None, None) };
         if ids.len() < 2 {

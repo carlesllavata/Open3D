@@ -59,8 +59,8 @@ impl AppEntry {
     pub fn has_download(&self, platform: Option<Platform>) -> bool {
         let (Some(r), Some(p)) = (self.release(), platform) else { return false };
         let stems: Vec<&str> = self.app.stems().collect();
-        let kinds: Vec<_> = p.download_kinds().iter().copied().filter(|k| self.app.installs(*k)).collect();
-        pick_asset(r, &stems, p, &kinds).is_some()
+        let kinds = p.download_kinds();
+        pick_asset(r, &stems, p, kinds).is_some()
     }
 
     /// Whether an install of the latest release would go ahead here. Only the backend knows which

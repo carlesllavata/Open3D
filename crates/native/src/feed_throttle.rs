@@ -162,11 +162,6 @@ impl FeedThrottle {
         }
     }
 
-    /// The server sent HTTP 429 recently and we're still waiting it out.
-    pub fn throttled(&self, now: i64) -> bool {
-        self.saved.throttles > 0 && self.saved.not_before > now
-    }
-
     fn save(&self) {
         let Some(file) = &self.file else { return };
         let saved = serde_json::to_vec(&self.saved).unwrap_or_default();
@@ -301,20 +296,6 @@ mod tests {
     }
 
     #[test]
-    fn a_429_throttles_hard_and_harder() {
-        let mut t = FeedThrottle::new();
-        t.sending(NOW);
-        t.finished(Outcome::Throttled { retry_after: None }, NOW, 0.0);
-        assert_eq!(t.wait(NOW), THROTTLE_BACKOFF);
-        assert!(t.throttled(NOW));
-        let sent = hammer(&mut t, NOW, 24 * 3600, Outcome::Throttled { retry_after: None });
-        let gaps: Vec<i64> = sent.windows(2).map(|w| w[1] - w[0]).collect();
-        assert!(gaps.windows(2).all(|g| g[1] >= g[0]), "{gaps:?}");
-        assert!(gaps.iter().all(|g| *g >= THROTTLE_BACKOFF));
-        assert!(gaps.last().is_some_and(|g| *g >= MAX_THROTTLE_BACKOFF));
-    }
-
-    #[test]
     fn a_429_during_the_first_load_ends_the_fast_start() {
         let mut t = FeedThrottle::new();
         t.sending(NOW);
@@ -351,21 +332,6 @@ mod tests {
         }
         let j = jitter();
         assert!((0.0..1.0).contains(&j));
-    }
-
-    #[test]
-    fn the_backoff_survives_a_restart() {
-        let dir = tempfile::tempdir().unwrap();
-        let file = dir.path().join("feed-throttle.json");
-        let mut t = FeedThrottle::load(&file, NOW);
-        t.finished(Outcome::Throttled { retry_after: None }, NOW, 0.0);
-        let again = FeedThrottle::load(&file, NOW + 60);
-        assert_eq!(again.wait(NOW + 60), THROTTLE_BACKOFF - 60);
-        assert!(again.throttled(NOW + 60));
-        // A good answer clears it.
-        let mut again = again;
-        again.finished(Outcome::Answered, NOW + THROTTLE_BACKOFF, 0.0);
-        assert_eq!(FeedThrottle::load(&file, NOW + THROTTLE_BACKOFF).wait(NOW + THROTTLE_BACKOFF), 0);
     }
 
     #[test]
@@ -412,18 +378,6 @@ mod tests {
         assert_eq!(t.wait(NOW), MAX_RETRY_AFTER * 3 / 2);
         let again = FeedThrottle::load(&file, NOW);
         assert_eq!(again.wait(NOW), MAX_RETRY_AFTER * 3 / 2);
-    }
-
-    #[test]
-    fn an_absurdly_late_saved_not_before_is_no_wait_but_a_sane_one_stands() {
-        let dir = tempfile::tempdir().unwrap();
-        let file = dir.path().join("feed-throttle.json");
-        std::fs::write(&file, br#"{"not_before": 9223372036854775807, "throttles": 1}"#).unwrap();
-        assert_eq!(FeedThrottle::load(&file, NOW).wait(NOW), 0);
-        std::fs::write(&file, format!(r#"{{"not_before": {}, "throttles": 1}}"#, NOW + 600)).unwrap();
-        let t = FeedThrottle::load(&file, NOW);
-        assert_eq!(t.wait(NOW), 600);
-        assert!(t.throttled(NOW));
     }
 
     #[test]

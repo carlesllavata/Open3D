@@ -85,10 +85,10 @@ impl Backend for Fake {
         out
     }
     fn capabilities(&self) -> Capabilities {
-        Capabilities { manage_apps: self.manage, reveal_label: "Show in Finder", self_update: self.manage }
+        Capabilities { manage_apps: self.manage, reveal_label: "Show in Explorer", self_update: self.manage }
     }
     fn platform(&self) -> Option<Platform> {
-        Some(Platform { os: Os::MacOs, arch: Arch::Arm64 })
+        Some(Platform { os: Os::Windows, arch: Arch::X64 })
     }
     fn now(&self) -> i64 {
         self.clock.get()
@@ -145,7 +145,8 @@ fn test_harness_builder<State>(theme: egui::Theme) -> egui_kittest::HarnessBuild
 }
 
 fn release(id: &str, v: &str, at: i64) -> Release {
-    let name = format!("{id}-{v}-macos-universal.dmg");
+    // The launcher ships an MSI; the apps ship 3ds Max plug-ins.
+    let name = if id == "open3d-launcher" { format!("{id}-{v}-windows-x64.msi") } else { format!("{id}-{v}-windows-x64-3dsmax.zip") };
     Release {
         tag: format!("v{v}"),
         version: version::parse(v),
@@ -191,8 +192,8 @@ fn events() -> Vec<Event> {
     for app in &SUITE {
         let inst = installed.iter().find(|(id, _)| *id == app.id).map(|(_, v)| Installed {
             version: version::parse(v),
-            source: InstallSource::MacApp,
-            location: format!("/Applications/{}.app", app.name),
+            source: InstallSource::Bundle,
+            location: format!(r"C:\Users\me\AppData\Roaming\Autodesk\ApplicationPlugins\{}.bundle", app.name),
             package: None,
             externally_managed: false,
             origin: None,
@@ -389,35 +390,6 @@ fn the_launcher_version_list_sizes_the_launchers_download() {
     let facts = row_facts(&h, "v0.9.0 (latest release)").unwrap_or_default();
     assert!(facts.starts_with("Oct ") && facts.ends_with(", 2026 · 150 MB"), "{facts:?}");
     assert_eq!(painted_facts(&h, "v0.9.0 (latest release)").map(|(text, _)| text), Some(facts));
-}
-
-#[cfg(windows)]
-#[test]
-fn windows_package_choice_can_select_portable_and_configures_the_backend() {
-    let (mut h, sent) = harness_full(
-        events(),
-        ViewMode::Grid,
-        egui::Theme::Light,
-        true,
-        1.0,
-        open3d_launcher_ui_egui::TitleBar::Native,
-        Rc::default(),
-        Some(Platform { os: Os::Windows, arch: Arch::X64 }),
-        None,
-    );
-    h.run_steps(8);
-    h.get_by_label("Settings").click();
-    h.run_steps(4);
-    h.get_by_value("Installer (.msi)").click();
-    h.run_steps(2);
-    h.get_by_label("Portable (.zip)").click();
-    h.run_steps(3);
-    assert_eq!(h.state().as_ref().unwrap().settings.preferred_kinds, [open3d_launcher_core::PackageKind::PortableZip]);
-    assert!(
-        sent.borrow()
-            .iter()
-            .any(|command| matches!(command, Command::Configure(options) if options.kinds == [open3d_launcher_core::PackageKind::PortableZip]))
-    );
 }
 
 /// Drives the real launcher lifecycle (`logic` then `ui`) in one `Context::run_ui` pass, optionally

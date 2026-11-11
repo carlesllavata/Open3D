@@ -112,7 +112,6 @@ pub(crate) enum UiAction {
 pub(crate) enum Dialog {
     Notes(String),
     ConfirmUninstall(String),
-    Install { app: String, folder: String },
     Replace { app: String, path: String },
     Settings,
     LauncherUpdate(open3d_launcher_core::Release),
@@ -126,7 +125,6 @@ impl Dialog {
         match self {
             Dialog::Notes(id) => ("notes", id),
             Dialog::ConfirmUninstall(id) => ("uninstall", id),
-            Dialog::Install { app, .. } => ("install", app),
             Dialog::Replace { app, .. } => ("replace", app),
             Dialog::Settings => ("settings", ""),
             Dialog::LauncherUpdate(r) => ("launcher-update", &r.tag),
@@ -259,11 +257,7 @@ impl LauncherUi {
         Self {
             backend,
             settings,
-            entries: open3d_launcher_core::hosted_catalog::apps()
-                .iter()
-                .filter(|a| platform.is_none_or(|p| a.runs_on(p.os)))
-                .map(AppEntry::new)
-                .collect(),
+            entries: open3d_launcher_core::hosted_catalog::apps().iter().map(AppEntry::new).collect(),
             caps,
             platform,
             checking: false,
@@ -471,15 +465,6 @@ impl LauncherUi {
         }
     }
 
-    pub(crate) fn custom_install_folders(&self) -> bool {
-        self.caps.manage_apps
-            && self.platform.is_some_and(|p| {
-                // Open3D: Windows apps are 3ds Max bundles, always in ApplicationPlugins.
-                matches!(p.os, open3d_launcher_core::Os::MacOs | open3d_launcher_core::Os::Linux)
-            })
-            && !crate::settings::is_flatpak_sandbox()
-    }
-
     pub(crate) fn request_versions(&mut self, id: &str) {
         if !self.version_lists.contains_key(id) && self.version_requests.insert(id.to_string()) {
             self.act_command(Command::ListVersions { app: id.to_string() });
@@ -494,16 +479,9 @@ impl LauncherUi {
         self.request_versions(id);
     }
 
-    /// Asks to install `id`. On a host that supports custom folders and for an app that is not
-    /// installed, it opens the folder dialog and sends nothing until that is confirmed; otherwise
-    /// it queues `Install` immediately, including for an already installed app (update/reinstall).
+    /// Queues `Install` for `id` (a first install, an update or a reinstall).
     pub(crate) fn install_app(&mut self, id: &str) {
-        if !self.custom_install_folders() || self.entry(id).is_some_and(|e| e.installed.is_some()) {
-            self.act_command(Command::Install { app: id.to_string() });
-            return;
-        }
-        self.dialog =
-            Some(Dialog::Install { app: id.to_string(), folder: self.settings.install_locations.per_app.get(id).cloned().unwrap_or_default() });
+        self.act_command(Command::Install { app: id.to_string() });
     }
 
     /// Non-drawing work: runs every frame and also while the window is hidden in the tray.
@@ -559,7 +537,7 @@ impl LauncherUi {
     fn handle(&mut self, event: Event) -> bool {
         match event {
             Event::CatalogUpdated => {
-                for app in open3d_launcher_core::hosted_catalog::apps().iter().filter(|a| self.platform.is_none_or(|p| a.runs_on(p.os))) {
+                for app in open3d_launcher_core::hosted_catalog::apps().iter() {
                     if let Some(entry) = self.entries.iter_mut().find(|e| e.app.id == app.id) {
                         entry.app = app;
                     } else {
@@ -951,7 +929,6 @@ impl LauncherUi {
             .filter(|(_, e)| {
                 self.in_filter(e, self.settings.filter)
                     && !(self.settings.hide_community_apps && e.app.kind == open3d_launcher_core::catalog::AppKind::Community)
-                    && self.platform.is_none_or(|p| e.app.runs_on(p.os))
                     && (needle.is_empty() || e.app.name.to_lowercase().contains(&needle) || e.app.tagline.to_lowercase().contains(&needle))
             })
             .collect();

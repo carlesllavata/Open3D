@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 /// A `Command` that won't flash a console window on Windows, and clears AppImage-injected
 /// environment variables that corrupt system helper binaries and external applications.
-pub fn command(program: impl AsRef<std::ffi::OsStr>) -> Command {
+pub(crate) fn command(program: impl AsRef<std::ffi::OsStr>) -> Command {
     let mut cmd = Command::new(program);
     #[cfg(windows)]
     {
@@ -20,13 +20,13 @@ pub fn command(program: impl AsRef<std::ffi::OsStr>) -> Command {
 }
 
 /// Runs a helper and returns its standard output when it succeeds within `timeout`.
-pub fn capture(program: &str, args: &[&str], timeout: Duration) -> Option<String> {
+pub(crate) fn capture(program: &str, args: &[&str], timeout: Duration) -> Option<String> {
     run(program, args, timeout).ok()
 }
 
 /// Runs a helper and returns its standard output when it succeeds within `timeout`; otherwise
 /// the reason, in the helper's own words (its standard error) where it gave one.
-pub fn run(program: &str, args: &[&str], timeout: Duration) -> Result<String, String> {
+pub(crate) fn run(program: &str, args: &[&str], timeout: Duration) -> Result<String, String> {
     output_result(program, run_with_output(program, args, timeout)?)
 }
 
@@ -51,7 +51,7 @@ pub(crate) fn run_with_output(program: &str, args: &[&str], timeout: Duration) -
 }
 
 /// Runs a configured helper with bounded output and a timeout.
-pub fn run_command(cmd: Command, program: &str, timeout: Duration) -> Result<String, String> {
+pub(crate) fn run_command(cmd: Command, program: &str, timeout: Duration) -> Result<String, String> {
     output_result(program, run_command_with_output(cmd, program, timeout)?)
 }
 
@@ -108,7 +108,7 @@ fn read_all<R: std::io::Read + Send + 'static>(pipe: Option<R>) -> std::thread::
 }
 
 /// Starts `cmd` without waiting for it, and reaps it when it exits.
-pub fn spawn_detached(mut cmd: Command) -> Result<(), String> {
+pub(crate) fn spawn_detached(mut cmd: Command) -> Result<(), String> {
     let mut child = cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(|e| format!("couldn't start it ({e})"))?;
     std::thread::spawn(move || {
         let _ = child.wait();
@@ -116,31 +116,9 @@ pub fn spawn_detached(mut cmd: Command) -> Result<(), String> {
     Ok(())
 }
 
-/// Waits up to `timeout` for the process `pid` to exit, and says whether it has. A process that
-/// can't be opened, because it's gone or never was, counts as exited.
-#[cfg(windows)]
-pub fn wait_for_exit(pid: u32, timeout: Duration) -> bool {
-    use winsafe::{HPROCESS, co};
-    let Ok(process) = HPROCESS::OpenProcess(co::PROCESS::SYNCHRONIZE, false, pid) else { return true };
-    // u32::MAX would mean INFINITE.
-    let ms = u32::try_from(timeout.as_millis()).unwrap_or(u32::MAX - 1);
-    process.WaitForSingleObject(Some(ms)).is_ok_and(|w| w == co::WAIT::OBJECT_0)
-}
-
 /// Whether this process is running inside a Flatpak container sandbox.
-pub fn in_sandbox() -> bool {
+pub(crate) fn in_sandbox() -> bool {
     std::env::var_os("FLATPAK_ID").is_some() || Path::new("/.flatpak-info").exists()
-}
-
-/// A command to run `flatpak`, delegating to the host via `flatpak-spawn --host` if inside a sandbox.
-pub fn flatpak_command() -> Command {
-    if in_sandbox() {
-        let mut cmd = command("flatpak-spawn");
-        cmd.args(["--host", "flatpak"]);
-        cmd
-    } else {
-        command("flatpak")
-    }
 }
 
 /// Where to ask for help and report problems: the launcher repository's issues.
@@ -149,14 +127,14 @@ pub fn community_url() -> &'static str {
 }
 
 /// Starts an app binary from its own folder.
-pub fn launch_binary(exe: &Path, args: &[String]) -> Result<(), String> {
+pub(crate) fn launch_binary(exe: &Path, args: &[String]) -> Result<(), String> {
     launch_binary_with_env(exe, args, &[])
 }
 
 /// Starts an app binary from its own folder with `env` added to its environment. Inside the
 /// sandbox `flatpak-spawn` does not pass the launcher's environment on, so each one becomes an
 /// `--env=` argument instead.
-pub fn launch_binary_with_env(exe: &Path, args: &[String], env: &[(&str, &std::ffi::OsStr)]) -> Result<(), String> {
+pub(crate) fn launch_binary_with_env(exe: &Path, args: &[String], env: &[(&str, &std::ffi::OsStr)]) -> Result<(), String> {
     let mut cmd = if in_sandbox() {
         let mut c = command("flatpak-spawn");
         c.arg("--host");
@@ -176,7 +154,7 @@ pub fn launch_binary_with_env(exe: &Path, args: &[String], env: &[(&str, &std::f
 }
 
 /// `--env=NAME=VALUE` for each of `env`, as `flatpak run` and `flatpak-spawn` take them.
-pub fn env_args(env: &[(&str, &std::ffi::OsStr)]) -> Vec<std::ffi::OsString> {
+pub(crate) fn env_args(env: &[(&str, &std::ffi::OsStr)]) -> Vec<std::ffi::OsString> {
     env.iter()
         .map(|(name, value)| {
             let mut arg = std::ffi::OsString::from(format!("--env={name}="));
@@ -192,7 +170,7 @@ pub fn open(target: &std::ffi::OsStr) -> Result<(), String> {
 }
 
 /// macOS: opens an `.app` bundle with `open`, handing `args` to the app (`open … --args`).
-pub fn open_app(bundle: &Path, args: &[String]) -> Result<(), String> {
+pub(crate) fn open_app(bundle: &Path, args: &[String]) -> Result<(), String> {
     let mut cmd = opener(bundle.as_os_str())?;
     if !args.is_empty() {
         cmd.arg("--args").args(args);
@@ -219,7 +197,7 @@ fn opener(target: &std::ffi::OsStr) -> Result<Command, String> {
 }
 
 /// Shows `path` selected in the file manager.
-pub fn reveal(path: &Path) -> Result<(), String> {
+pub(crate) fn reveal(path: &Path) -> Result<(), String> {
     if cfg!(target_os = "macos") {
         let mut cmd = command("open");
         cmd.arg("-R").arg(path);
@@ -259,7 +237,7 @@ fn explorer_select_arg(path: &Path) -> Option<std::ffi::OsString> {
 }
 
 /// Whether a process started from inside `path` (an exe, an AppImage, or a `.app`) is running.
-pub fn is_running(path: &Path) -> bool {
+pub(crate) fn is_running(path: &Path) -> bool {
     if cfg!(windows) {
         let Some(name) = path.file_name().and_then(OsStr::to_str) else { return false };
         let filter = format!("IMAGENAME eq {name}");
@@ -322,15 +300,6 @@ mod run_tests {
     /// A shell command line, for the platform's shell.
     fn shell(script: &str) -> (&'static str, [&str; 2]) {
         if cfg!(windows) { ("cmd", ["/C", script]) } else { ("/bin/sh", ["-c", script]) }
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn waiting_for_a_process_ends_when_it_exits() {
-        let mut child = Command::new("ping").args(["-n", "3", "127.0.0.1"]).stdout(Stdio::null()).spawn().unwrap();
-        assert!(!wait_for_exit(child.id(), Duration::from_millis(200)), "it's still running");
-        assert!(wait_for_exit(child.id(), Duration::from_secs(30)), "it has exited");
-        child.wait().unwrap();
     }
 
     #[test]

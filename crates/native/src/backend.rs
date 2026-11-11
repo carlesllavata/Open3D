@@ -10,8 +10,7 @@ use open3d_launcher_core::catalog::{LAUNCHER, LAUNCHER_ID};
 use open3d_launcher_core::feed::{Feed, FeedAnswer};
 use open3d_launcher_core::platform::{Arch, Os, Platform, pick_asset};
 use open3d_launcher_core::protocol::{
-    Backend, BackendOptions, CANCELLED, Capabilities, Command, Event, INSTALL_CANCELLED, JobPhase, LatestRelease, Origin, PAUSED, PausedDownload,
-    Source, VersionTrack,
+    Backend, BackendOptions, Capabilities, Command, Event, JobPhase, LatestRelease, Origin, PAUSED, PausedDownload, Source, VersionTrack,
 };
 use open3d_launcher_core::release::{Asset, Release};
 use open3d_launcher_core::{Installed, PackageKind, SuiteApp, version};
@@ -21,7 +20,6 @@ use crate::http::{self, Http, Stop};
 use crate::install::{self, Job};
 use crate::manifest::Manifest;
 use crate::paths::Paths;
-use crate::process;
 use crate::source::{GitHubSource, ReleaseSource};
 
 /// The longest the launcher's own update waits for other installs to end before it gives up
@@ -302,7 +300,7 @@ impl NativeBackend {
         let pre = options.prereleases;
         let feed = if pre { None } else { load_feed(&self.paths) };
         let now = crate::now();
-        for app in open3d_launcher_core::hosted_catalog::apps().iter().filter(|a| self.platform.is_none_or(|p| a.runs_on(p.os))) {
+        for app in open3d_launcher_core::hosted_catalog::apps().iter() {
             let answer = match feed.as_ref().map(|f| f.answer(app, now)) {
                 Some(FeedAnswer::Fresh(Some(r))) => Some((LatestRelease::Found(r), Origin::ReleaseFeed)),
                 Some(FeedAnswer::Fresh(None)) => Some((LatestRelease::None, Origin::ReleaseFeed)),
@@ -324,7 +322,7 @@ impl NativeBackend {
         let paths = self.paths.clone();
         let platform = self.platform;
         std::thread::spawn(move || {
-            for app in open3d_launcher_core::hosted_catalog::apps().iter().filter(|a| platform.is_none_or(|p| a.runs_on(p.os))) {
+            for app in open3d_launcher_core::hosted_catalog::apps().iter() {
                 report_partial(app, &shared, &paths, platform);
             }
         });
@@ -349,12 +347,12 @@ impl NativeBackend {
             // download stays a month; a finished one kept after a failed install, a week.
             http::clean_downloads(&paths.downloads(), Duration::from_secs(30 * 86_400), Duration::from_secs(7 * 86_400));
             let manifest = shared.manifest.lock().unwrap_or_else(PoisonError::into_inner).clone();
-            for app in open3d_launcher_core::hosted_catalog::apps().iter().filter(|a| platform.is_none_or(|p| a.runs_on(p.os))) {
+            for app in open3d_launcher_core::hosted_catalog::apps().iter() {
                 let found = crate::detect::detect(app, &manifest);
                 publish_detected(app, found, &shared, platform);
             }
             // Downloads paused (or cut off by quitting) in an earlier run.
-            for app in open3d_launcher_core::hosted_catalog::apps().iter().filter(|a| platform.is_none_or(|p| a.runs_on(p.os))) {
+            for app in open3d_launcher_core::hosted_catalog::apps().iter() {
                 report_partial(app, &shared, &paths, platform);
             }
             drop(busy);
@@ -368,7 +366,7 @@ impl NativeBackend {
         let (Some(source), Some(http)) = (self.source.clone(), self.http.clone()) else {
             crate::hosted_catalog::load_once(None, &self.paths);
             self.shared.emit(Event::CatalogUpdated);
-            for app in open3d_launcher_core::hosted_catalog::apps().iter().filter(|a| self.platform.is_none_or(|p| a.runs_on(p.os))) {
+            for app in open3d_launcher_core::hosted_catalog::apps().iter() {
                 self.shared.emit(Event::Latest {
                     app: app.id.to_string(),
                     latest: LatestRelease::Failed("secure connections aren't available".into()),
@@ -399,27 +397,17 @@ impl NativeBackend {
                 shared.emit(Event::Notices { announcements: f.announcements.clone(), alerts: f.alerts.clone() });
             }
             let now = crate::now();
-            let queue = Mutex::new(
-                open3d_launcher_core::hosted_catalog::apps()
-                    .iter()
-                    .filter(|a| platform.is_none_or(|p| a.runs_on(p.os)))
-                    .chain(std::iter::once(&LAUNCHER))
-                    .collect::<Vec<&SuiteApp>>(),
-            );
+            let queue = Mutex::new(open3d_launcher_core::hosted_catalog::apps().iter().chain(std::iter::once(&LAUNCHER)).collect::<Vec<&SuiteApp>>());
             let sources = sweep(&queue, &mirror, feed.as_ref(), fallback, &source, &shared, &paths, (platform, &options), force, now);
             source.save();
             {
                 let answered = shared.answered.lock().unwrap_or_else(PoisonError::into_inner);
-                if open3d_launcher_core::hosted_catalog::apps()
-                    .iter()
-                    .filter(|a| platform.is_none_or(|p| a.runs_on(p.os)))
-                    .all(|a| answered.contains(a.id))
-                {
+                if open3d_launcher_core::hosted_catalog::apps().iter().all(|a| answered.contains(a.id)) {
                     shared.loaded.store(true, Ordering::SeqCst);
                 }
             }
             // A newer release changes which file an install would use.
-            for app in open3d_launcher_core::hosted_catalog::apps().iter().filter(|a| platform.is_none_or(|p| a.runs_on(p.os))) {
+            for app in open3d_launcher_core::hosted_catalog::apps().iter() {
                 report_partial(app, &shared, &paths, platform);
             }
             let source_used = source_used_of(&sources);
@@ -436,9 +424,6 @@ impl NativeBackend {
     fn start_job(&self, app_id: &str, work: Work) -> bool {
         let uninstall = matches!(work, Work::Uninstall);
         let Some(app) = SuiteApp::by_id(app_id) else { return false };
-        if self.platform.is_some_and(|p| !app.runs_on(p.os)) {
-            return false;
-        }
         log::info!("{}: starting {} job", app.name, if uninstall { "uninstall" } else { "install/update" });
         let stop = Arc::new(Stop::default());
         let restarting = {
@@ -482,10 +467,9 @@ impl NativeBackend {
                     None => Err(format!("{} isn't installed", app.name)),
                 }
             } else {
-                let (approved, batch) = match &work {
-                    Work::Replace(path) => (Some(path.as_str()), None),
-                    Work::Install(batch) => (None, batch.clone()),
-                    Work::Uninstall => (None, None),
+                let approved = match &work {
+                    Work::Replace(path) => Some(path.as_str()),
+                    Work::Install | Work::Uninstall => None,
                 };
                 let r = run_install(
                     app,
@@ -499,7 +483,6 @@ impl NativeBackend {
                     &stop,
                     approved,
                     source.as_deref(),
-                    batch,
                 );
                 // Stopped by the connection rather than by the user: say so, and how to go on.
                 match r {
@@ -512,17 +495,6 @@ impl NativeBackend {
             // Look again: the result is whatever is on disk now.
             let manifest = shared.manifest.lock().unwrap_or_else(PoisonError::into_inner).clone();
             let found = crate::detect::detect(app, &manifest);
-            // One installer call can cover several apps, and fail after some of them went in.
-            let latest = shared.latest.lock().unwrap_or_else(PoisonError::into_inner).get(app.id).cloned();
-            let result = match (result, latest) {
-                (Err(e), Some(release))
-                    if !uninstall && release.version.as_ref().is_some_and(|v| landed_despite(&e, existing.as_ref(), found.as_ref(), v)) =>
-                {
-                    log::warn!("{}: {e}; the new version is installed all the same", app.id);
-                    Ok(installed_text(app, existing.is_some(), &release))
-                }
-                (result, _) => result,
-            };
             // The manifest may change the package plan even when detection finds the same copy.
             shared.invalidate_download_size(app.id);
             publish_detected(app, found, &shared, platform);
@@ -533,34 +505,12 @@ impl NativeBackend {
         true
     }
 
-    /// Starts one install per app, together (see [`Command::InstallAll`]): where the platform
-    /// needs a permission prompt, the batch shares one — each member waits for the others'
-    /// downloads before the system installer is asked once. Apps unknown or already running a
-    /// job are left out; a batch of one installs the same as a single [`Command::Install`].
+    /// Starts one install per app (see [`Command::InstallAll`]). Apps unknown or already running a
+    /// job are left out.
     fn install_all(&self, apps: &[String]) {
-        let running = self.shared.jobs.lock().unwrap_or_else(PoisonError::into_inner);
-        let mut ids: Vec<&str> = Vec::new();
         for id in apps {
-            let Some(app) = SuiteApp::by_id(id) else { continue };
-            if running.contains_key(app.id) || ids.contains(&app.id) {
-                continue;
-            }
-            ids.push(app.id);
-        }
-        drop(running);
-        #[cfg(any(target_os = "linux", windows))]
-        let batch = (!ids.is_empty()).then(|| install::INSTALLER.gather(ids.len()));
-        let mut started = 0;
-        for id in &ids {
-            if self.start_job(id, Work::Install(batch.clone())) {
-                started += 1;
-            }
-        }
-        // Members that could not start after all (another job raced in for them) are not coming:
-        // their places in the batch are given back, so the rest don't wait for them.
-        for _ in started..ids.len() {
-            if let Some(batch) = &batch {
-                batch.leave();
+            if SuiteApp::by_id(id).is_some() {
+                self.start_job(id, Work::Install);
             }
         }
     }
@@ -623,9 +573,8 @@ impl NativeBackend {
 
 #[derive(Clone, PartialEq, Eq)]
 enum Work {
-    /// Install or update. Carries the batch this job is part of, if any (see
-    /// [`Command::InstallAll`]): where the platform needs a permission prompt, the batch shares one.
-    Install(Option<crate::queue::Gather>),
+    /// Install or update.
+    Install,
     /// Install over the path the user agreed to overwrite (see [`Command::Replace`]).
     Replace(String),
     Uninstall,
@@ -646,46 +595,6 @@ fn is_chosen_downgrade(track: &VersionTrack, chosen: &Release, existing: Option<
     chosen.tag == *tag && version::is_newer(installed_v, chosen_v)
 }
 
-/// For a version chosen by name that is older than the installed copy: the installed version's own
-/// published release, to put back if the downgrade fails. `None` for anything else, without
-/// asking `list`. An error means the downgrade can't be made safe, so it must not start.
-fn downgrade_previous(
-    app: &SuiteApp,
-    track: &VersionTrack,
-    chosen: &Release,
-    existing: Option<&Installed>,
-    list: impl FnOnce() -> Result<Vec<Release>, String>,
-) -> Result<Option<Release>, String> {
-    let Some(installed_v) = existing.and_then(|i| i.version.as_ref()).filter(|_| is_chosen_downgrade(track, chosen, existing)) else {
-        return Ok(None);
-    };
-    let releases =
-        list().map_err(|e| format!("couldn't find {} {installed_v} to put back if going back fails ({e}), so nothing was changed.", app.name))?;
-    releases.into_iter().find(|r| r.version.as_ref() == Some(installed_v)).map(Some).ok_or_else(|| {
-        format!("{} {installed_v} isn't published any more, so it couldn't be put back if going back fails. Nothing was changed.", app.name)
-    })
-}
-
-/// What an install does with a Flatpak its repository updates: `flatpak update`, on Linux, and
-/// only on the stable track (it follows the repository's latest build, never a pinned or nightly
-/// one). `None` for any other copy, which [`install_plan`] decides; else the copy, or why the
-/// update can't run. [`run_install`] and the UI's [`Event::Installable`] both ask this.
-fn repository_update<'a>(app: &SuiteApp, existing: Option<&'a Installed>, options: &BackendOptions) -> Option<Result<&'a Installed, String>> {
-    let inst = existing.filter(|i| i.source == open3d_launcher_core::InstallSource::Flatpak && i.externally_managed)?;
-    Some(if !matches!(options.versions.get(app.id), None | Some(VersionTrack::Stable)) {
-        Err(install::managed_elsewhere(app, inst, false).unwrap_or_else(|| "Update this app through its Flatpak repository".into()))
-    } else if !cfg!(target_os = "linux") {
-        Err(flatpak_unsupported(app))
-    } else {
-        Ok(inst)
-    })
-}
-
-/// Why a Flatpak can't be updated on a system without Flatpak.
-fn flatpak_unsupported(app: &SuiteApp) -> String {
-    format!("{} is a Flatpak, which is not supported on this platform", app.name)
-}
-
 /// Who asks [`install_plan`].
 #[derive(Clone, Copy, Debug)]
 enum Asking<'a> {
@@ -700,7 +609,6 @@ enum Asking<'a> {
 /// before anything is fetched.
 struct InstallPlan {
     release: Release,
-    platform: Platform,
     asset: Asset,
     kind: PackageKind,
 }
@@ -718,14 +626,6 @@ fn install_plan(
     (existing, record): (Option<&Installed>, Option<&crate::manifest::Record>),
     asking: Asking<'_>,
 ) -> Result<InstallPlan, String> {
-    let managed = existing.and_then(|e| match asking {
-        Asking::Install => install::managed_elsewhere(app, e, false),
-        // No pacman lookup for the wording of a refusal: only yes or no is wanted.
-        Asking::Answer(_) => install::is_managed_elsewhere(app, e).then(String::new),
-    });
-    if let Some(msg) = managed {
-        return Err(msg);
-    }
     let platform = platform.ok_or("this system isn't supported")?;
     let release = latest.ok_or("the selected release hasn't been found yet. Check for updates first.")?;
     let track = options.versions.get(app.id).unwrap_or(&VersionTrack::Stable);
@@ -736,18 +636,9 @@ fn install_plan(
         Asking::Install => None,
         Asking::Answer(system) => Some(system),
     };
-    let (asset, kind) = planned_asset_on(app, &release, platform, options, (existing, record), system).ok_or_else(|| {
-        if platform.os == open3d_launcher_core::Os::Linux
-            && options.install_locations.folder(app.id).is_some()
-            && existing.is_none()
-            && record.is_none()
-        {
-            "this release has no AppImage for a custom install folder".to_string()
-        } else {
-            format!("{} {} has no download for {}", app.name, release.version_label(), platform.label())
-        }
-    })?;
-    Ok(InstallPlan { release, platform, asset, kind })
+    let (asset, kind) = planned_asset_on(app, &release, platform, options, (existing, record), system)
+        .ok_or_else(|| format!("{} {} has no download for {}", app.name, release.version_label(), platform.label()))?;
+    Ok(InstallPlan { release, asset, kind })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -762,52 +653,15 @@ fn run_install(
     record: Option<&crate::manifest::Record>,
     stop: &Stop,
     approved: Option<&str>,
-    source: Option<&dyn ReleaseSource>,
-    batch: Option<crate::queue::Gather>,
+    _source: Option<&dyn ReleaseSource>,
 ) -> Result<String, String> {
-    // The ways out below that never reach the installer (a repository-managed Flatpak, a missing
-    // release, the overwrite question, a paused download) free the rest of the batch at once;
-    // from `install_at` on, the same guard does it there.
-    let mut batch = install::BatchPlace(batch);
-    if let Some(update) = repository_update(app, existing, options) {
-        let inst = update?;
-        #[cfg(not(target_os = "linux"))]
-        {
-            let _ = inst;
-            return Err(flatpak_unsupported(app));
-        }
-    }
     let latest = shared.latest.lock().unwrap_or_else(PoisonError::into_inner).get(app.id).cloned();
-    let InstallPlan { release, platform, asset, kind } = install_plan(app, latest, platform, options, (existing, record), Asking::Install)?;
+    let InstallPlan { release, asset, kind } = install_plan(app, latest, platform, options, (existing, record), Asking::Install)?;
     let http = http.ok_or("secure connections aren't available on this system")?;
     let track = options.versions.get(app.id).unwrap_or(&VersionTrack::Stable);
-    // Going back to a version chosen by name. A macOS bundle or a launcher AppImage keeps the old
-    // copy until the new one is in place. Otherwise the installed version's own package is found
-    // first, so a downgrade that fails can put it back. Without it nothing changes.
-    let keeps_old_copy = install::keeps_old_copy(kind, existing, record);
-    let previous = if keeps_old_copy {
-        None
-    } else {
-        downgrade_previous(app, track, &release, existing, || {
-            source
-                .ok_or_else(|| "secure connections aren't available on this system".to_string())?
-                .versions(&feed_repo(load_feed(paths).as_ref(), app))
-        })?
-    };
-    let previous_asset = match &previous {
-        Some(p) => Some(
-            planned_asset(app, p, platform, options, existing, record)
-                .filter(|(_, k)| *k == kind)
-                .map(|(a, _)| a)
-                .ok_or_else(|| format!("{} {} has no matching download to put back, so nothing was changed.", app.name, p.version_label()))?,
-        ),
-        None => None,
-    };
-    let downgrade = if keeps_old_copy {
-        is_chosen_downgrade(track, &release, existing).then_some(install::Downgrade::KeepOldCopy)
-    } else {
-        previous.as_ref().zip(previous_asset.as_ref()).map(|(previous, asset)| install::Downgrade::Reinstall { previous, asset })
-    };
+    // Going back to a version chosen by name: the 3ds Max bundle keeps the old copy until the new
+    // one is in place, so a downgrade that fails leaves it as it was.
+    let downgrade = is_chosen_downgrade(track, &release, existing).then_some(install::Downgrade::KeepOldCopy);
     let occupied = install::occupied(app, &asset, kind, existing, record, &options.install_locations, paths)?;
     let replace = match replace_consent(occupied.as_deref(), approved) {
         Consent::Free => false,
@@ -817,7 +671,6 @@ fn run_install(
             return Err(format!("{} already exists", path.display()));
         }
     };
-    let approved_path = occupied.as_deref().filter(|_| replace);
     let mut last_emit = Instant::now() - Duration::from_secs(1);
     let mut phase = |p: JobPhase| {
         // Downloads report thousands of times; the UI needs ~20 a second.
@@ -827,17 +680,7 @@ fn run_install(
         last_emit = Instant::now();
         shared.emit(Event::Progress { app: app.id.to_string(), phase: p });
     };
-    let mut job = Job {
-        http,
-        paths,
-        stop,
-        phase: &mut phase,
-        install_locations: &options.install_locations,
-        replace,
-        approved_path,
-        downgrade,
-        batch: batch.take(),
-    };
+    let mut job = Job { http, paths, stop, phase: &mut phase, install_locations: &options.install_locations, replace, downgrade };
     let mut commit_record = |record: &crate::manifest::Record| {
         let mut manifest = shared.manifest.lock().unwrap_or_else(PoisonError::into_inner);
         let mut updated = manifest.clone();
@@ -891,19 +734,6 @@ fn replace_consent<'a>(occupied: Option<&'a std::path::Path>, approved: Option<&
 fn installed_text(app: &SuiteApp, update: bool, release: &Release) -> String {
     let verb = if update { "updated to" } else { "installed:" };
     format!("{} {verb} {}", app.name, release.version_label())
-}
-
-/// Whether an install whose job failed with `error` went in all the same. Only a failed call
-/// shared by several apps (Linux packages installed together) can have installed some of them;
-/// any other error, a cancellation or a pause stands, whatever is found afterwards.
-fn landed_despite(error: &str, before: Option<&Installed>, after: Option<&Installed>, latest: &version::Version) -> bool {
-    error != PAUSED && error != CANCELLED && error != INSTALL_CANCELLED && install::failed_in_shared_call(error) && landed(before, after, latest)
-}
-
-/// Whether an install took, whatever its job reported: `latest` is there now and wasn't before.
-fn landed(before: Option<&Installed>, after: Option<&Installed>, latest: &version::Version) -> bool {
-    let has_latest = |copy: Option<&Installed>| copy.and_then(|i| i.version.as_ref()).is_some_and(|v| !version::is_update(latest, v));
-    has_latest(after) && !has_latest(before)
 }
 
 /// For the launcher's own update, before it replaces itself: waits (saying so through `waiting`)
@@ -979,15 +809,8 @@ fn planned_asset_on(
     system: Option<&install::SystemKinds>,
 ) -> Option<(Asset, PackageKind)> {
     let stems: Vec<&str> = app.stems().collect();
-    let custom_linux = platform.os == open3d_launcher_core::Os::Linux
-        && !process::in_sandbox()
-        && existing.is_none()
-        && record.is_none()
-        && options.install_locations.folder(app.id).is_some();
     let kinds = if existing.is_none() && record.is_some_and(|r| r.kind == PackageKind::PortableZip) {
         vec![PackageKind::PortableZip]
-    } else if custom_linux {
-        vec![open3d_launcher_core::PackageKind::AppImage]
     } else {
         match system {
             Some(system) => install::choose_kinds_on(app, existing, record, &options.kinds, system),
@@ -1015,15 +838,9 @@ fn installable_event(app: &SuiteApp, shared: &Shared, platform: Option<Platform>
     let release = shared.latest.lock().unwrap_or_else(PoisonError::into_inner).get(app.id).cloned()?;
     let record = shared.manifest.lock().unwrap_or_else(PoisonError::into_inner).apps.get(app.id).cloned();
     let options = shared.options.lock().unwrap_or_else(PoisonError::into_inner).clone();
-    let installable = match repository_update(app, Some(&existing), &options) {
-        // Updated with `flatpak update`: nothing is downloaded, so nothing to ask the system.
-        Some(update) => update.is_ok(),
-        None => {
-            // A copy appeared after the caller looked: what was asked moments ago, not a probe here.
-            let system = system.unwrap_or_else(|| shared.last_system_kinds());
-            install_plan(app, Some(release), platform, &options, (Some(&existing), record.as_ref()), Asking::Answer(&system)).is_ok()
-        }
-    };
+    // A copy appeared after the caller looked: what was asked moments ago, not a probe here.
+    let system = system.unwrap_or_else(|| shared.last_system_kinds());
+    let installable = install_plan(app, Some(release), platform, &options, (Some(&existing), record.as_ref()), Asking::Answer(&system)).is_ok();
     Some(Event::Installable { app: app.id.to_string(), installable })
 }
 
@@ -1509,7 +1326,7 @@ impl Backend for NativeBackend {
                 });
             }
             Command::Install { app } => {
-                self.start_job(&app, Work::Install(None));
+                self.start_job(&app, Work::Install);
             }
             Command::InstallAll { apps } => self.install_all(&apps),
             Command::Replace { app, path } => {
@@ -1601,7 +1418,6 @@ impl Backend for NativeBackend {
 
     fn capabilities(&self) -> Capabilities {
         let reveal_label = match self.platform.map(|p| p.os) {
-            Some(Os::MacOs) => "Show in Finder",
             Some(Os::Windows) => "Show in Explorer",
             _ => "Show in Files",
         };
@@ -1626,31 +1442,11 @@ mod tests {
     use std::sync::atomic::AtomicUsize;
     use std::sync::mpsc;
 
-    use open3d_launcher_core::InstallSource;
-
     use open3d_launcher_core::protocol::LatestRelease;
 
     use super::*;
 
     use crate::source::Answer;
-
-    /// A member of a batch that ends before it ever reaches the installer — its download failed,
-    /// or it turned out to need none of the batch's prompts — frees the rest of the batch at
-    /// once, rather than holding them back until the batch's wait runs out.
-    #[cfg(any(target_os = "linux", windows))]
-    #[test]
-    fn a_batch_member_that_never_reaches_the_installer_frees_the_rest() {
-        let gather = install::INSTALLER.gather(1);
-        {
-            let _place = install::BatchPlace(Some(gather.clone()));
-            assert!(!gather.open(), "the place is held while the job is on its way");
-        }
-        assert!(gather.open(), "dropping the place on the way out opens the gate");
-    }
-
-    fn tagged(v: &str) -> Release {
-        Release { tag: format!("v{v}"), version: version::parse(v), ..Default::default() }
-    }
 
     /// A "Replace" answer covers the path that was shown, never a destination that changed since.
     #[test]
@@ -1663,25 +1459,6 @@ mod tests {
         assert_eq!(replace_consent(Some(shown), None), Consent::Ask(shown));
         assert_eq!(replace_consent(Some(shown), Some(&approved)), Consent::Given);
         assert_eq!(replace_consent(Some(moved), Some(&approved)), Consent::Ask(moved), "a yes for one file must not overwrite another");
-    }
-
-    #[test]
-    fn a_downgrade_is_only_a_version_chosen_by_name_below_the_installed_one() {
-        let installed = Installed {
-            version: version::parse("0.14.0"),
-            source: InstallSource::MacApp,
-            location: String::new(),
-            package: None,
-            externally_managed: false,
-            origin: None,
-            installation: None,
-        };
-        let pinned = VersionTrack::Pinned("v0.13.0".into());
-        assert!(is_chosen_downgrade(&pinned, &tagged("0.13.0"), Some(&installed)));
-        assert!(!is_chosen_downgrade(&VersionTrack::Stable, &tagged("0.13.0"), Some(&installed)));
-        assert!(!is_chosen_downgrade(&VersionTrack::Pinned("v0.15.0".into()), &tagged("0.15.0"), Some(&installed)));
-        assert!(!is_chosen_downgrade(&pinned, &tagged("0.12.0"), Some(&installed)));
-        assert!(!is_chosen_downgrade(&pinned, &tagged("0.13.0"), None));
     }
 
     #[test]
@@ -1944,50 +1721,6 @@ mod tests {
         assert_eq!(pins.choice("pdftool"), craft_update::pins::Choice::Stable);
     }
 
-    fn copy(v: &str) -> Installed {
-        Installed {
-            version: version::parse(v),
-            source: InstallSource::Deb,
-            location: String::new(),
-            package: None,
-            externally_managed: false,
-            origin: None,
-            installation: None,
-        }
-    }
-
-    #[test]
-    fn a_failed_job_counts_as_installed_only_when_the_new_version_arrived() {
-        let latest = version::parse("0.5.0").unwrap();
-        // One app of a shared installer call went in before another failed the call.
-        assert!(landed(Some(&copy("0.4.1")), Some(&copy("0.5.0")), &latest));
-        assert!(landed(None, Some(&copy("0.5.0")), &latest));
-        // Nothing changed, so the error stands.
-        assert!(!landed(Some(&copy("0.4.1")), Some(&copy("0.4.1")), &latest));
-        assert!(!landed(None, None, &latest));
-        // It was current before the job ran: the job did not install it.
-        assert!(!landed(Some(&copy("0.5.0")), Some(&copy("0.5.0")), &latest));
-        // A copy whose version can't be read proves nothing.
-        let unreadable = Installed { version: None, ..copy("0.5.0") };
-        assert!(!landed(Some(&copy("0.4.1")), Some(&unreadable), &latest));
-    }
-
-    #[test]
-    fn only_a_failed_shared_call_can_count_as_installed() {
-        let latest = version::parse("0.5.0").unwrap();
-        let (before, after) = (Some(copy("0.4.1")), Some(copy("0.5.0")));
-        let landed_after = |error: &str| landed_despite(error, before.as_ref(), after.as_ref(), &latest);
-        // An app's own failure stands, even if its new version shows up (an MSI or AppImage that
-        // reported an error, a cancelled or dismissed prompt, a pause).
-        for error in ["the Windows Installer stopped with error 1603", "couldn't copy the AppImage", CANCELLED, INSTALL_CANCELLED, PAUSED] {
-            assert!(!landed_after(error), "{error}");
-        }
-        // A call shared with other apps may have installed this one before it failed.
-        let shared = "the system installer stopped with error 100 while handling 2 apps together. Try them one at a time.";
-        assert_eq!(landed_after(shared), cfg!(target_os = "linux"));
-        assert!(!landed_despite(shared, before.as_ref(), before.as_ref(), &latest));
-    }
-
     #[test]
     fn the_launcher_restarts_only_once_every_other_job_has_ended() {
         let jobs = Mutex::new(HashMap::new());
@@ -2015,22 +1748,5 @@ mod tests {
         let restarting = AtomicBool::new(false);
         assert_eq!(claim_restart(&jobs, &restarting, &stop, RESTART_WAIT, &mut || panic!("it never waits")), Ok(()));
         assert!(restarting.load(Ordering::SeqCst));
-    }
-
-    #[test]
-    fn a_cancelled_launcher_update_stops_waiting_and_claims_nothing() {
-        let jobs =
-            Mutex::new(HashMap::from([(LAUNCHER_ID.to_string(), Arc::new(Stop::default())), ("phototool".to_string(), Arc::new(Stop::default()))]));
-        let restarting = AtomicBool::new(false);
-        let stop = Stop::default();
-        let (waiting, waits) = mpsc::channel();
-        std::thread::scope(|scope| {
-            let (jobs, restarting, stop) = (&jobs, &restarting, &stop);
-            let claim = scope.spawn(move || claim_restart(jobs, restarting, stop, RESTART_WAIT, &mut || waiting.send(()).unwrap()));
-            waits.recv().unwrap();
-            stop.cancel();
-            assert_eq!(claim.join().unwrap(), Err(CANCELLED.to_string()));
-        });
-        assert!(!restarting.load(Ordering::SeqCst));
     }
 }
