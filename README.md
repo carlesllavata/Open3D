@@ -30,7 +30,7 @@ Requirements: Windows 10 or 11 (64-bit), 3ds Max 2025 or newer.
 To remove the launcher, use Windows' *Settings > Apps > Installed apps > Open3D Launcher > Uninstall*. The
 apps you installed with it stay in 3ds Max: remove them from the launcher first if you want them gone.
 
-> Status: early (v0.1.1). What each version adds: [CHANGELOG.md](CHANGELOG.md).
+> Status: early (v0.1.2). What each version adds: [CHANGELOG.md](CHANGELOG.md).
 
 ### Apps
 

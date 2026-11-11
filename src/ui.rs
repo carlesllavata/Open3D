@@ -241,13 +241,9 @@ impl Launcher {
         self.catalog_error = None;
         let tx = self.tx.clone();
         let ctx = ctx.clone();
-        let stamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
-        let loc = self.opts.catalog.uncached(stamp);
+        let loc = self.opts.catalog.clone();
         std::thread::spawn(move || {
-            let result = net::read_text(&loc).and_then(|t| catalog::parse(&t));
+            let result = net::read_catalog(&loc).and_then(|t| catalog::parse(&t));
             let _ = tx.send(Msg::Catalog(result));
             ctx.request_repaint();
         });

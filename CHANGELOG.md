@@ -2,6 +2,12 @@
 
 What each version of the Open3D Launcher adds, newest first.
 
+## 0.1.2 — 11 November 2026
+
+- **New app versions now really show up within a minute.** The launcher reads the catalog through GitHub's API,
+  whose cache lasts at most a minute; if that fails, it reads it the old way. The fix in 0.1.1 didn't work:
+  GitHub's 5-minute cache for the catalog file ignores the trick 0.1.1 used.
+
 ## 0.1.1 — 11 November 2026
 
 - **New app versions show up right away.** The launcher now always reads the current catalog: before, a
