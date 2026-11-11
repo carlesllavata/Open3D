@@ -13,10 +13,10 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-$root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).ProviderPath
 $policy = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'install-policy.json') | ConvertFrom-Json
 [void](New-Item -ItemType Directory -Force -Path $OutputDirectory)
-$output = (Resolve-Path -LiteralPath $OutputDirectory).Path
+$output = (Resolve-Path -LiteralPath $OutputDirectory).ProviderPath
 Add-Type -AssemblyName System.Drawing
 foreach ($arch in $Architectures) {
   $stage = Join-Path $output $arch

@@ -40,7 +40,7 @@ function Get-SessionProperty($Session, [string] $Name) {
 $installer = $null; $database = $null; $session = $null
 try {
   $installer = New-Object -ComObject WindowsInstaller.Installer
-  $file = (Resolve-Path -LiteralPath $MsiPath).Path
+  $file = (Resolve-Path -LiteralPath $MsiPath).ProviderPath
   $database = $installer.OpenDatabase($file, 0)
   $session = $installer.OpenPackage($file, 1)
   $properties = @{}

@@ -26,7 +26,7 @@ param(
   [switch] $SkipBuild
 )
 $ErrorActionPreference = 'Stop'
-$Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).ProviderPath
 
 # ---- app-specific values ----------------------------------------------------------------------
 $Pkg = 'open3d-launcher'          # cargo package and binary
@@ -56,7 +56,7 @@ $Dist = if ($env:DIST) { $env:DIST } else { Join-Path $Root 'dist\release' }
 $TargetDir = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { Join-Path $Root 'target' }
 New-Item -ItemType Directory -Force -Path $Dist | Out-Null
 
-if (-not $env:OPEN3D_LAUNCHER_BUILD_SHA) { $env:OPEN3D_LAUNCHER_BUILD_SHA = (git -C $Root rev-parse HEAD 2>$null) }
+if (-not $env:OPEN3D_LAUNCHER_BUILD_SHA) { try { $env:OPEN3D_LAUNCHER_BUILD_SHA = (git -C $Root rev-parse HEAD) } catch { Write-Warning "no build commit: $_" } }
 if (-not $env:OPEN3D_LAUNCHER_BUILD_DATE) { $env:OPEN3D_LAUNCHER_BUILD_DATE = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd') }
 
 Write-Output "$AppName $Version for Windows $Arch ($Target)"
