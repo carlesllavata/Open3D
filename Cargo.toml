@@ -1,6 +1,6 @@
 [package]
 name = "open3d-launcher"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Installs, updates and removes the Open3D apps for 3ds Max"
 license = "GPL-3.0-or-later"

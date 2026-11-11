@@ -97,6 +97,19 @@ impl Location {
             Location::File(p) => p.display().to_string(),
         }
     }
+
+    /// The same location with a query parameter that changes every time, so web caches (GitHub serves
+    /// raw files with a 5-minute cache) hand over the current catalog. Only used for reading the catalog;
+    /// relative package paths still resolve against the plain location.
+    pub fn uncached(&self, stamp: u64) -> Location {
+        match self {
+            Location::Url(u) => {
+                let sep = if u.contains('?') { '&' } else { '?' };
+                Location::Url(format!("{u}{sep}open3d={stamp}"))
+            }
+            Location::File(p) => Location::File(p.clone()),
+        }
+    }
 }
 
 /// Parses and checks a catalog. Anything that would later be used as a path is validated here.
@@ -255,5 +268,21 @@ mod tests {
             file.join("pkg/x.zip"),
             Location::File(PathBuf::from(r"C:\cat").join("pkg/x.zip"))
         );
+    }
+
+    #[test]
+    fn uncached_adds_a_changing_parameter_to_urls_only() {
+        let web = Location::parse("https://example.org/a/catalog.json");
+        assert_eq!(
+            web.uncached(42),
+            Location::Url("https://example.org/a/catalog.json?open3d=42".into())
+        );
+        let with_query = Location::parse("https://example.org/catalog.json?x=1");
+        assert_eq!(
+            with_query.uncached(7),
+            Location::Url("https://example.org/catalog.json?x=1&open3d=7".into())
+        );
+        let file = Location::parse(r"C:\cat\catalog.json");
+        assert_eq!(file.uncached(1), file);
     }
 }

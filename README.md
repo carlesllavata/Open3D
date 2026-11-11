@@ -30,12 +30,15 @@ Requirements: Windows 10 or 11 (64-bit), 3ds Max 2025 or newer.
 To remove the launcher, use Windows' *Settings > Apps > Installed apps > Open3D Launcher > Uninstall*. The
 apps you installed with it stay in 3ds Max: remove them from the launcher first if you want them gone.
 
-> Status: early (v0.1.0). What each version adds: [CHANGELOG.md](CHANGELOG.md).
+> Status: early (v0.1.1). What each version adds: [CHANGELOG.md](CHANGELOG.md).
 
 ### Apps
 
-The catalog is empty for now: apps are added to it as they are published. The first ones will be
-**OpenTools** (a tool hub for 3ds Max) and **OpenManager** (scene setups and batch rendering).
+- **OpenTools**: a tool hub for 3ds Max (scene checks and repairs, asset / proxy / XRef managers, modeling,
+  material and clipboard tools).
+
+More apps are added to the catalog as they are published; **OpenManager** (scene setups and batch rendering)
+is next.
 
 ## Building from source
 

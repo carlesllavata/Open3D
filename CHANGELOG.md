@@ -2,6 +2,12 @@
 
 What each version of the Open3D Launcher adds, newest first.
 
+## 0.1.1 — 11 November 2026
+
+- **New app versions show up right away.** The launcher now always reads the current catalog: before, a
+  version published a moment ago could take up to five minutes to appear, because GitHub keeps the catalog
+  in a short-lived cache.
+
 ## 0.1.0 — 11 November 2026
 
 The first version of the launcher: one place to install, update and remove the Open3D apps for 3ds Max.
