@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- SPDX-License-Identifier: GPL-3.0-or-later. The Open3D cube, same geometry as dev/make_icon.py. -->
+  <rect x="0" y="0" width="256" height="256" rx="56.32" ry="56.32" fill="#24262b"/>
+  <polygon points="128,46.08 204.8,89.6 128,133.12 51.2,89.6" fill="#ffb061"/>
+  <polygon points="51.2,89.6 128,133.12 128,220.16 51.2,176.64" fill="#ff8c1a"/>
+  <polygon points="128,133.12 204.8,89.6 204.8,176.64 128,220.16" fill="#c9660a"/>
+</svg>

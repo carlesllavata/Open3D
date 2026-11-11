@@ -1,0 +1,40 @@
+# Open3D Launcher catalog, served at https://raw.githubusercontent.com/carlesllavata/Open3D/main/launcher-catalog.toml
+# Verify launcher-catalog.toml.sig with the launcher's pinned Ed25519 key before use.
+# App versions come from each app's own GitHub releases; this file only lists the apps.
+
+[[apps]]
+color = [255, 140, 26]
+former_bundles = []
+former_ids = []
+former_names = []
+id = "opentools"
+binary = "opentools"
+site = "https://github.com/carlesllavata/OpenTools"
+windows_msi_publisher = "Open3D"
+desktop_categories = ["Graphics", "3DGraphics"]
+startup_wm_class = "opentools"
+icon_url = "https://raw.githubusercontent.com/carlesllavata/Open3D/main/launcher-app-icons/opentools-9a633c53440a8463a656fa83623b4a320d2da903498e0e588697ea1d2466e81d.png"
+icon_sha256 = "9a633c53440a8463a656fa83623b4a320d2da903498e0e588697ea1d2466e81d"
+ink_dark = [255, 176, 97]
+ink_light = [201, 102, 10]
+kind = "official"
+name = "OpenTools"
+publisher = "Open3D"
+repo = "carlesllavata/OpenTools"
+tagline = "Tool hub for 3ds Max"
+[apps.details]
+headline = "Everyday 3ds Max tools in one install."
+about = "OpenTools gathers scene checks and repairs, asset, proxy and XRef managers, modeling, material and clipboard tools in one dockable panel, a searchable command palette and macros you can bind to hotkeys.\n\nOne package installs every tool, and every 3ds Max from 2025 on picks it up."
+platforms = "Windows, 3ds Max 2025 and later"
+[[apps.details.features]]
+title = "One panel"
+text = "Every tool in a dockable panel with categories, favourites and search."
+[[apps.details.features]]
+title = "Command palette"
+text = "Find and run any tool by typing its name."
+[[apps.details.features]]
+title = "Scene checks"
+text = "Forensic finds and repairs common scene problems."
+[[apps.details.features]]
+title = "Object clipboard"
+text = "Copy and paste objects between scenes and computers."

@@ -6,3 +6,12 @@
 *.png binary
 *.ico binary
 *.zip binary
+
+# Signatures cover exact bytes: never convert these to CRLF.
+/launcher-catalog.toml -text
+/crates/core/catalog.toml -text
+/crates/core/tests/fixtures/hosted-catalog.toml -text
+*.sig -text
+*.png binary
+*.ttf binary
+*.bmp binary

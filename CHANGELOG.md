@@ -2,6 +2,34 @@
 
 What each version of the Open3D Launcher adds, newest first.
 
+## 0.2.0 — 11 November 2026
+
+A new launcher, rebuilt on the open-source code of [ArtCraft Launcher](https://github.com/storytold/craft-launcher)
+and adapted to 3ds Max. It doesn't update from 0.1.x on its own: remove the old launcher from Windows'
+*Settings > Apps > Installed apps* and install this one. The apps you installed stay where they are and the
+new launcher finds them.
+
+- **Installer or portable, your choice.** `open3d-launcher-0.2.0-windows-x64.msi` installs the launcher for
+  you only (no administrator rights) with a setup wizard, a Start menu shortcut and an optional desktop one.
+  The portable zip runs from any folder and keeps its settings next to it.
+- **Each app's versions come from its own GitHub repository**, OpenTools from
+  [carlesllavata/OpenTools](https://github.com/carlesllavata/OpenTools). Every download is checked against the
+  SHA-256 published with the release before anything is installed.
+- **Install any published version** of an app, not just the latest, and **update all** your apps at once.
+- **Open in 3ds Max** starts the newest 3ds Max on your computer.
+- **3ds Max must be closed** to install, update or remove an app; the launcher says so instead of failing
+  halfway. An interrupted update puts the previous version back.
+- **A signed catalog.** The list of apps is built into the launcher and can be extended from this
+  repository only with a matching signature.
+- **Grid or table view, light or dark theme**, and release notes for every version.
+- **Notification area and start with Windows:** closing the window keeps the launcher running in the
+  notification area, where it can tell you about updates; both are optional in *Preferences*.
+- **English and Spanish.** The launcher follows Windows' language; change it in *Preferences*.
+- **The launcher updates itself** from the same kind of package you installed (MSI or portable). It isn't
+  code-signed yet, so each update is checked against the release's published checksum.
+- Free software under the GNU GPL v3 or later. ArtCraft Launcher's MIT / Apache-2.0 notices are kept in
+  `NOTICE` and `LICENSES/`.
+
 ## 0.1.2 — 11 November 2026
 
 - **New app versions now really show up within a minute.** The launcher reads the catalog through GitHub's API,

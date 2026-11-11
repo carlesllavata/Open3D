@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Draws the Open3D Launcher icon: assets/icon.ico (16-256 px) and assets/icon-256.png.
+"""Draws the Open3D Launcher icon: assets/open3d/icon.ico (16-256 px), icon-256.png and icon-64.png (tray).
 
 Run with the Python that ships with 3ds Max (it has PySide6):
     python -I dev\\make_icon.py
@@ -12,7 +12,7 @@ from pathlib import Path
 from PySide6.QtCore import QBuffer, QByteArray, QIODevice, QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QGuiApplication, QImage, QPainter, QPainterPath, QPolygonF
 
-ASSETS = Path(__file__).resolve().parent.parent / "assets"
+ASSETS = Path(__file__).resolve().parent.parent / "assets" / "open3d"
 SIZES = (16, 24, 32, 48, 64, 128, 256)
 
 BACKGROUND = QColor("#24262b")
@@ -86,7 +86,8 @@ def main():
     images = [draw(s) for s in SIZES]
     write_ico(ASSETS / "icon.ico", images)
     images[-1].save(str(ASSETS / "icon-256.png"), "PNG")
-    print("wrote", ASSETS / "icon.ico", "and", ASSETS / "icon-256.png")
+    images[SIZES.index(64)].save(str(ASSETS / "icon-64.png"), "PNG")
+    print("wrote icon.ico, icon-256.png and icon-64.png in", ASSETS)
 
 
 if __name__ == "__main__":

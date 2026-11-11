@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SPDX-License-Identifier: GPL-3.0-or-later
+
+  Overrides for the setup wizard's WixUI strings, so its pages name the version being installed
+  ([Open3DLauncherVersion] is the full version, pre-release tag included, set in
+  open3d-launcher.wxs) and say what the launcher is for.
+-->
+<WixLocalization Culture="en-US" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+  <String Id="WelcomeDlgTitle" Value="{\WixUI_Font_Bigger}Welcome to [ProductName] [Open3DLauncherVersion]" />
+  <String Id="WelcomeDlgDescription" Value="Open3D Launcher installs, updates and removes the Open3D apps for 3ds Max, starting with OpenTools. The apps are free and open source.&#13;&#10;&#13;&#10;It installs for you only, so no administrator rights are needed. Click Next to continue." />
+  <!-- The folder page (Open3DInstallDirDlg). -->
+  <String Id="InstallDirDlgTitle" Value="{\WixUI_Font_Title}Choose where to install" />
+  <String Id="InstallDirDlgDescription" Value="Click Next to install to the default folder, or click Change to pick another." />
+  <String Id="Open3DInstallDirNote" Value="Open3D Launcher installs for you only, without administrator rights, so pick a folder you can write to (not Program Files). Updates install into the same folder." />
+  <String Id="Open3DDesktopShortcut" Value="Create a desktop shortcut" />
+  <String Id="VerifyReadyDlgInstallTitle" Value="{\WixUI_Font_Title}Ready to install [ProductName] [Open3DLauncherVersion]" />
+  <!-- Also shown after a repair or removal from the same wizard, so it doesn't say "installed". -->
+  <String Id="ExitDialogTitle" Value="{\WixUI_Font_Bigger}Completed the [ProductName] [Open3DLauncherVersion] Setup Wizard" />
+</WixLocalization>

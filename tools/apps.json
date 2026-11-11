@@ -1,21 +1,19 @@
 {
   "opentools": {
     "name": "OpenTools",
-    "summary": "Tool hub for 3ds Max: scene clean-up, materials, clipboard and more.",
+    "repo": "carlesllavata/OpenTools",
     "checkout": "../apps/OpenTools",
     "bundle": "OpenTools.bundle",
     "bundle_path": "OpenTools.bundle",
-    "changelog": "CHANGELOG.md",
-    "max_min": 2025
+    "changelog": "CHANGELOG.md"
   },
   "openmanager": {
     "name": "OpenManager",
-    "summary": "Scene setups and batch rendering for 3ds Max.",
+    "repo": "carlesllavata/OpenManager",
     "checkout": "../apps/OpenManager",
     "bundle": "OpenManager.bundle",
     "bundle_path": "dist/OpenManager.bundle",
     "build": ["tools/build.py"],
-    "changelog": "CHANGELOG.md",
-    "max_min": 2025
+    "changelog": "CHANGELOG.md"
   }
 }

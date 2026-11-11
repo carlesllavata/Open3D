@@ -1,0 +1,54 @@
+{
+  "id": "open3d-launcher",
+  "name": "Open3D Launcher",
+  "mode": "perUser",
+  "upgradeCode": "CDB388BE-1B69-49B3-8022-E38D8E027CAA",
+  "sources": [
+    "open3d-launcher.wxs"
+  ],
+  "icon": "assets/open3d/icon.ico",
+  "localization": [
+    "open3d-launcher.en-us.wxl"
+  ],
+  "extensions": [
+    "UI",
+    "Util"
+  ],
+  "payloads": [
+    "LICENSE",
+    "NOTICE",
+    "open3d-launcher.exe"
+  ],
+  "registry": [
+    [
+      "1",
+      "Software\\Open3D\\Open3D Launcher",
+      "InstallDir",
+      "[INSTALLFOLDER]"
+    ],
+    [
+      "1",
+      "Software\\Open3D\\Open3D Launcher",
+      "DesktopShortcutChoice",
+      "[DESKTOPSHORTCUTCHOICE]"
+    ],
+    [
+      "1",
+      "Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\open3d-launcher.exe",
+      "",
+      "[#Open3DLauncherExe]"
+    ],
+    [
+      "1",
+      "Software\\Open3D\\Open3D Launcher",
+      "StartMenuShortcut",
+      "#1"
+    ],
+    [
+      "1",
+      "Software\\Open3D\\Open3D Launcher",
+      "DesktopShortcut",
+      "#1"
+    ]
+  ]
+}

@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SPDX-License-Identifier: GPL-3.0-or-later
+
+  Open3D Launcher MSI (WiX Toolset v5: `dotnet tool install -g wix`, plus the UI and Util
+  extensions: `wix extension add -g WixToolset.UI.wixext/5.0.2 WixToolset.Util.wixext/5.0.2`).
+  Built by package.ps1:
+
+    wix build open3d-launcher.wxs -arch x64 -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext
+      -culture en-US -loc open3d-launcher.en-us.wxl -d Version=1.2.3 -d DisplayVersion=1.2.3-rc.1
+      -d BinDir=... -d IconPath=... -d BannerBmp=... -d DialogBmp=... -o out.msi
+
+  Per-user install (no UAC prompt), by default into %LOCALAPPDATA%\Programs\Open3D\Launcher, so
+  the launcher can update itself without elevation, plus a Start Menu shortcut. The shortcut
+  carries the AppUserModelID io.github.carlesllavata.open3d-launcher, which Windows needs to show
+  toast notifications from an unpackaged app and to group the taskbar button. No file associations.
+
+  Double-clicked, it opens a setup wizard that names the version: Welcome; a folder page to pick
+  where it goes, with a "Create a desktop shortcut" box; Ready; a progress page; and a Finish page
+  with a ticked "Launch Open3D Launcher" box. There is no licence page: the code is GNU GPL v3 or
+  later, which asks nothing of the person who runs it; LICENSE and NOTICE are installed next to the
+  exe. The install folder and the desktop-shortcut choice are recorded under HKCU and reused by
+  later versions, so an update (the launcher's own self-update runs this with /passive, which
+  skips the wizard) lands in the same folder and keeps the user's choice; the launcher reads the
+  recorded folder to know it was installed by this MSI.
+
+  Per-user packages can't use a file as a component's KeyPath (ICE38), so each component is
+  keyed on an HKCU value, and the folders we create are removed on uninstall (ICE64).
+
+  Based on ArtCraft Launcher's installer (MIT OR Apache-2.0, Copyright (c) 2026 ArtCraft Team and
+  the ArtCraft Launcher contributors), with Open3D's own identity: UpgradeCode, component GUIDs,
+  names, links and art.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package
+      Name="Open3D Launcher"
+      Manufacturer="Open3D"
+      Version="$(var.Version)"
+      UpgradeCode="CDB388BE-1B69-49B3-8022-E38D8E027CAA"
+      Scope="perUser"
+      Compressed="yes"
+      Language="1033">
+    <SummaryInformation Description="Open3D Launcher: install and update the Open3D apps for 3ds Max" Manufacturer="Open3D" />
+    <!-- Same-version upgrades let successive pre-releases of one X.Y.Z replace each other
+         (MSI versions are numeric, so 1.2.3-rc.1 and 1.2.3-rc.2 are both 1.2.3). -->
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+        DowngradeErrorMessage="A newer version of Open3D Launcher is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <!-- The Apps & features icon only. MSI caches it under %APPDATA%\Microsoft\Installer\{ProductCode},
+         using its Id as the filename (keep the .exe extension, ICE50). Every update is a major
+         upgrade with a new ProductCode that deletes the old folder, so the shortcuts must not use
+         it: a taskbar pin is a copy of the shortcut, an update never refreshes it, and its icon
+         would go blank once the old folder was gone. The shortcuts take the exe's own icon instead
+         (build.rs embeds it), at a path every update keeps. -->
+    <Icon Id="Open3DLauncherIcon.exe" SourceFile="$(var.IconPath)" />
+    <Property Id="ARPPRODUCTICON" Value="Open3DLauncherIcon.exe" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/carlesllavata/Open3D" />
+    <Property Id="ARPURLUPDATEINFO" Value="https://github.com/carlesllavata/Open3D/releases" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/carlesllavata/Open3D/issues" />
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="LocalProgramsFolder" Name="Programs">
+        <Directory Id="Open3DSuiteFolder" Name="Open3D">
+          <Directory Id="INSTALLFOLDER" Name="Launcher" />
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+    <StandardDirectory Id="DesktopFolder" />
+
+    <!-- An update installs where the user put the previous version (recorded by
+         Open3DLauncherApp below). -->
+    <Property Id="INSTALLFOLDER" Secure="yes" />
+    <Property Id="PREVIOUSINSTALLFOLDER" Secure="yes">
+      <RegistrySearch Id="PreviousInstallFolder" Root="HKCU" Key="Software\Open3D\Open3D Launcher" Name="InstallDir" Type="raw" />
+    </Property>
+    <SetProperty Id="INSTALLFOLDER" Action="Open3DRestoreLauncherFolder" Value="[PREVIOUSINSTALLFOLDER]"
+        Before="CostInitialize" Sequence="both" Condition="PREVIOUSINSTALLFOLDER AND NOT INSTALLFOLDER" />
+
+    <!-- The desktop shortcut: the folder page's box sets INSTALLDESKTOPSHORTCUT to 1. It starts
+         ticked on a first install; an update keeps what the user chose last time. A value given
+         on the command line (msiexec ... INSTALLDESKTOPSHORTCUT=0 or 1) wins. -->
+    <Property Id="PREVIOUSDESKTOPSHORTCUT">
+      <RegistrySearch Id="PreviousDesktopShortcut" Root="HKCU" Key="Software\Open3D\Open3D Launcher" Name="DesktopShortcutChoice" Type="raw" />
+    </Property>
+    <SetProperty Id="INSTALLDESKTOPSHORTCUT" Value="1" After="AppSearch" Sequence="first"
+        Condition="NOT INSTALLDESKTOPSHORTCUT AND ((NOT Installed AND NOT WIX_UPGRADE_DETECTED AND NOT PREVIOUSDESKTOPSHORTCUT) OR PREVIOUSDESKTOPSHORTCUT = &quot;1&quot;)" />
+    <!-- Recorded as 1 or 0 (an unticked box leaves the property empty), for the next update. -->
+    <SetProperty Id="DESKTOPSHORTCUTCHOICE" Action="RememberNoDesktopShortcut" Value="0" Before="InstallInitialize" Sequence="execute"
+        Condition="NOT (INSTALLDESKTOPSHORTCUT = &quot;1&quot;)" />
+    <SetProperty Id="DESKTOPSHORTCUTCHOICE" Action="RememberDesktopShortcut" Value="1" Before="InstallInitialize" Sequence="execute"
+        Condition="INSTALLDESKTOPSHORTCUT = &quot;1&quot;" />
+
+    <Feature Id="Main" Title="Open3D Launcher" Level="1">
+      <ComponentGroupRef Id="Open3DLauncherFiles" />
+    </Feature>
+
+    <!-- The setup wizard: WixUI_InstallDir without its licence page, and with our folder page
+         (Open3DInstallDirDlg: the stock one plus the desktop-shortcut box) in place of the stock
+         one. A later NewDialog on the same button wins. -->
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <UI>
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="Open3DInstallDirDlg" Order="2" Condition="NOT Installed" />
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="Open3DInstallDirDlg" Order="2" Condition="NOT Installed" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchOpen3DLauncher"
+          Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed" />
+
+      <Dialog Id="Open3DInstallDirDlg" Width="370" Height="270" Title="!(loc.InstallDirDlg_Title)">
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)">
+          <!-- As WixUI_InstallDir does for its own folder page: take the folder, check it, go on. -->
+          <Publish Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1" />
+          <Publish Event="DoAction" Value="WixUIValidatePath_$(sys.BUILDARCHSHORT)" Order="2" Condition="NOT WIXUI_DONTVALIDATEPATH" />
+          <Publish Event="SpawnDialog" Value="InvalidDirDlg" Order="3" Condition="NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID&lt;&gt;&quot;1&quot;" />
+          <Publish Event="NewDialog" Value="VerifyReadyDlg" Order="4" Condition="WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID=&quot;1&quot;" />
+        </Control>
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)">
+          <Publish Event="NewDialog" Value="WelcomeDlg" />
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
+          <Publish Event="SpawnDialog" Value="CancelDlg" />
+        </Control>
+
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes" Text="!(loc.InstallDirDlgDescription)" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes" Text="!(loc.InstallDirDlgTitle)" />
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="!(loc.InstallDirDlgBannerBitmap)" />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+
+        <Control Id="FolderLabel" Type="Text" X="20" Y="60" Width="290" Height="30" NoPrefix="yes" Text="!(loc.InstallDirDlgFolderLabel)" />
+        <Control Id="Folder" Type="PathEdit" X="20" Y="100" Width="320" Height="18" Property="WIXUI_INSTALLDIR" Indirect="yes" />
+        <Control Id="ChangeFolder" Type="PushButton" X="20" Y="120" Width="56" Height="17" Text="!(loc.InstallDirDlgChange)">
+          <Publish Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1" />
+          <Publish Event="SpawnDialog" Value="BrowseDlg" Order="2" />
+        </Control>
+        <Control Id="PerUserNote" Type="Text" X="20" Y="146" Width="330" Height="24" NoPrefix="yes" Text="!(loc.Open3DInstallDirNote)" />
+
+        <Control Id="DesktopShortcut" Type="CheckBox" X="20" Y="186" Width="330" Height="17" Property="INSTALLDESKTOPSHORTCUT" CheckBoxValue="1" Text="!(loc.Open3DDesktopShortcut)" />
+      </Dialog>
+    </UI>
+    <!-- Our own art, drawn by package.ps1 from the Open3D cube and the apps' icons. -->
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.BannerBmp)" />
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.DialogBmp)" />
+
+    <!-- The full version (Version is numeric, so it drops a pre-release tag), shown on the wizard's
+         pages through open3d-launcher.en-us.wxl. -->
+    <Property Id="Open3DLauncherVersion" Value="$(var.DisplayVersion)" />
+
+    <!-- Finish page: say where to find the launcher, and offer to start it (ticked by default). -->
+    <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="Open3D Launcher $(var.DisplayVersion) is installed. Start it any time from the Start menu to install and update the Open3D apps." />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch Open3D Launcher" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <Property Id="WixShellExecTarget" Value="[#Open3DLauncherExe]" />
+    <!-- Runs in the wizard's own process, so the launcher starts as the user. -->
+    <CustomAction Id="LaunchOpen3DLauncher" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" DllEntry="WixShellExec" Impersonate="yes" Return="ignore" />
+  </Package>
+
+  <Fragment>
+    <ComponentGroup Id="Open3DLauncherFiles">
+      <Component Id="Open3DLauncherApp" Directory="INSTALLFOLDER" Guid="4CF57BC5-9271-4A02-B46A-F312A4F56646">
+        <File Id="Open3DLauncherLicense" Source="$(var.BinDir)\LICENSE" KeyPath="no" />
+        <File Id="Open3DLauncherNotice" Source="$(var.BinDir)\NOTICE" KeyPath="no" />
+        <File Id="Open3DLauncherExe" Source="$(var.BinDir)\open3d-launcher.exe" KeyPath="no" />
+        <!-- Read back by the next version's installer and by the launcher (self_update.rs). -->
+        <RegistryValue Root="HKCU" Key="Software\Open3D\Open3D Launcher" Name="InstallDir" Value="[INSTALLFOLDER]" Type="string" KeyPath="yes" />
+        <RegistryValue Root="HKCU" Key="Software\Open3D\Open3D Launcher" Name="DesktopShortcutChoice" Value="[DESKTOPSHORTCUTCHOICE]" Type="string" />
+        <!-- Win+R "open3d-launcher". -->
+        <RegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\App Paths\open3d-launcher.exe" Value="[#Open3DLauncherExe]" Type="string" />
+        <RemoveFolder Id="RemoveInstallFolder" Directory="INSTALLFOLDER" On="uninstall" />
+        <RemoveFolder Id="RemoveSuiteFolder" Directory="Open3DSuiteFolder" On="uninstall" />
+        <RemoveFolder Id="RemoveLocalProgramsFolder" Directory="LocalProgramsFolder" On="uninstall" />
+      </Component>
+
+      <Component Id="Open3DLauncherShortcut" Directory="ProgramMenuFolder" Guid="A0FC38A2-96C3-49E7-9AD1-2D0F5D16A878">
+        <Shortcut Id="StartMenuShortcut" Name="Open3D Launcher"
+            Description="Install and update the Open3D apps for 3ds Max"
+            Target="[#Open3DLauncherExe]" WorkingDirectory="INSTALLFOLDER">
+          <ShortcutProperty Key="System.AppUserModel.ID" Value="io.github.carlesllavata.open3d-launcher" />
+        </Shortcut>
+        <RegistryValue Root="HKCU" Key="Software\Open3D\Open3D Launcher" Name="StartMenuShortcut" Value="1" Type="integer" KeyPath="yes" />
+      </Component>
+
+      <!-- Only when the folder page's box is ticked; removed on uninstall like everything else. -->
+      <Component Id="Open3DLauncherDesktopShortcut" Directory="DesktopFolder" Guid="90D1488A-F8B1-4FA6-8A39-9E78569BDFC1"
+          Condition="INSTALLDESKTOPSHORTCUT = &quot;1&quot;">
+        <Shortcut Id="DesktopShortcut" Name="Open3D Launcher"
+            Description="Install and update the Open3D apps for 3ds Max"
+            Target="[#Open3DLauncherExe]" WorkingDirectory="INSTALLFOLDER">
+          <ShortcutProperty Key="System.AppUserModel.ID" Value="io.github.carlesllavata.open3d-launcher" />
+        </Shortcut>
+        <RegistryValue Root="HKCU" Key="Software\Open3D\Open3D Launcher" Name="DesktopShortcut" Value="1" Type="integer" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>
