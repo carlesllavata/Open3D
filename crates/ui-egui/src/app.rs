@@ -184,7 +184,6 @@ pub struct LauncherUi {
     fonts_ready: bool,
     /// The CJK language whose system font is installed, if any.
     /// Set when such a language comes into use, then kept for the session.
-    pub(crate) cjk_font: Option<crate::i18n::Lang>,
     sent_options: Option<BackendOptions>,
     /// Unix seconds of the last look at what's installed (startup counts).
     last_detect: i64,
@@ -209,20 +208,9 @@ pub struct LauncherUi {
     pub(crate) pin_dragging: Option<(String, Vec<String>)>,
 }
 
-/// The language to draw in: the preference, or English where it needs a CJK font the system
-/// doesn't have (Settings says so), rather than boxes for every character. The only place the
-/// CJK font gets loaded: when such a language is selected, or Auto resolves to it.
+/// The language to draw in: the preference, or the system's language for `auto`.
 pub(crate) fn effective_lang(pref: &str) -> crate::i18n::Lang {
-    let lang = crate::i18n::Lang::from_pref(pref);
-    if lang.needs_cjk_font() && !theme::cjk_font_available(lang) { crate::i18n::Lang::EN } else { lang }
-}
-
-/// The language this frame may draw: a CJK preference only once its own face is installed in the
-/// context, never merely because the system has one. Callers draw with the result, so a language
-/// whose font becomes active only next pass cannot ask this pass for a missing glyph.
-pub(crate) fn drawable_lang(pref: &str, installed: Option<crate::i18n::Lang>) -> crate::i18n::Lang {
-    let lang = crate::i18n::Lang::from_pref(pref);
-    if lang.needs_cjk_font() && installed != Some(lang) { crate::i18n::Lang::EN } else { lang }
+    crate::i18n::Lang::from_pref(pref)
 }
 
 /// How often to look again at what's installed, to notice apps installed or removed outside
@@ -239,16 +227,13 @@ fn update_check_due(last: Option<i64>, now: i64, every: i64) -> bool {
 }
 
 impl LauncherUi {
-    /// Builds the UI shell around `backend`: installs the bundled fonts and an available system
-    /// CJK face when the effective language needs it, plus image loaders; snapshots capabilities and
+    /// Builds the UI shell around `backend`: installs the bundled fonts and image loaders; snapshots capabilities and
     /// platform, and migrates the settings in memory. It does not save the migrated settings or
     /// send `Configure`; [`Self::logic`] sends the configuration and the shell owns persistence.
     /// `fonts_ready` starts false, so the first `ui` pass is a gate that draws nothing and flushes
     /// any action queued before it.
     pub fn new(ctx: &egui::Context, backend: Box<dyn Backend>, settings: Settings) -> Self {
-        let lang = effective_lang(&settings.language);
-        let cjk_font = lang.needs_cjk_font().then_some(lang);
-        theme::install_fonts(ctx, cjk_font);
+        theme::install_fonts(ctx);
         egui_extras::install_image_loaders(ctx);
         let caps = backend.capabilities();
         let platform = backend.platform();
@@ -286,7 +271,6 @@ impl LauncherUi {
             motion_recheck: 0.0,
             applied_motion: None,
             fonts_ready: false,
-            cjk_font,
             sent_options: None,
             last_detect: 0,
             was_focused: true,
@@ -304,7 +288,7 @@ impl LauncherUi {
     /// timings belong to a context, and toasts and the next look at the OS's animation setting are
     /// timed on its clock.
     pub fn attach(&mut self, ctx: &egui::Context) {
-        theme::install_fonts(ctx, self.cjk_font);
+        theme::install_fonts(ctx);
         egui_extras::install_image_loaders(ctx);
         self.fonts_ready = false;
         self.applied_theme = None;
@@ -807,14 +791,6 @@ impl LauncherUi {
         if host.title_bar() == TitleBar::MacOs && ctx.input_mut(|i| i.consume_key(egui::Modifiers::MAC_CMD, egui::Key::M)) {
             ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
         }
-        // `effective_lang` only picks a CJK language once the system's font has loaded; install
-        // that face now, and draw nothing until the context has switched to it.
-        let lang = effective_lang(&self.settings.language);
-        if lang.needs_cjk_font() && self.cjk_font != Some(lang) {
-            theme::install_fonts(&ctx, Some(lang));
-            self.cjk_font = Some(lang);
-            self.fonts_ready = false;
-        }
         if !self.fonts_ready {
             self.fonts_ready = true;
             ctx.request_repaint();
@@ -825,7 +801,7 @@ impl LauncherUi {
         }
         // Set the current language only after the font gate: a face installed by `set_fonts`
         // becomes active next pass, so drawing with it in the pass that installed it would panic.
-        set_current(drawable_lang(&self.settings.language, self.cjk_font));
+        set_current(effective_lang(&self.settings.language));
         self.zoom_input(&ctx);
         if self.applied_theme != Some(self.settings.theme) {
             theme::apply(&ctx, self.settings.theme);

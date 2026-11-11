@@ -120,18 +120,17 @@ impl LauncherUi {
     /// that can be drawn now; a CJK face is installed by the next pass's font gate. When that face
     /// is unavailable, an English-only notice explains why the interface stays English.
     fn settings_language(&mut self, ui: &mut Ui) {
-        let t = Tokens::get(ui.ctx());
+        let _t = Tokens::get(ui.ctx());
         let mut lang_code = self.settings.language.clone();
-        let installed = self.cjk_font;
         sheet::panel_with_heading(ui, tl!("Language"), |ui, heading| {
             let width = ui.available_width();
             craft_ui::ComboBox::from_id_salt("language")
-                .selected_text(Settings::language_label(&lang_code, installed))
+                .selected_text(Settings::language_label(&lang_code))
                 .width(width)
                 .show_ui(ui, |ui| {
                     ui.selectable_value(&mut lang_code, Settings::LANGUAGE_AUTO.to_string(), tl!("Auto"));
                     for lang in crate::i18n::Lang::for_picker() {
-                        ui.selectable_value(&mut lang_code, lang.code().to_string(), Settings::language_label(lang.code(), installed));
+                        ui.selectable_value(&mut lang_code, lang.code().to_string(), Settings::language_label(lang.code()));
                     }
                 })
                 .response
@@ -139,18 +138,8 @@ impl LauncherUi {
         });
         if lang_code != self.settings.language {
             self.settings.language = lang_code;
-            // A CJK face selected here is installed at the next pass's font gate; keep this pass on
-            // a language that can be drawn now rather than asking for missing glyphs.
-            crate::i18n::set_current(crate::app::drawable_lang(&self.settings.language, self.cjk_font));
+            crate::i18n::set_current(crate::i18n::Lang::from_pref(&self.settings.language));
             ui.ctx().request_repaint();
-        }
-        let pref = crate::i18n::Lang::from_pref(&self.settings.language);
-        if pref.needs_cjk_font() && !theme::cjk_font_available(pref) {
-            // In English on purpose: the language asked for can't be drawn.
-            let text = "No font for this language was found on this system, so the interface stays in English. \
-                        Installing one (for example Noto Sans CJK or Noto Sans Georgian) and restarting fixes it.";
-            ui.add(egui::Label::new(RichText::new(text).size(12.0).color(t.warn)).wrap());
-            ui.add_space(14.0);
         }
     }
 

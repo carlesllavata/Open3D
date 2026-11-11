@@ -9,14 +9,10 @@
 //!
 //! | Installed as | Swap |
 //! |---|---|
-//! | macOS `.app` | copy the new bundle from the DMG over this one (fine while running), reopen it |
 //! | Windows MSI (any folder, for one account or everyone) | after exit, run the new MSI in the copy's own context (everyone asks for permission), then start the exe it registers |
 //! | Windows portable zip | after exit, unzip over this folder (settings in `Open3DLauncherData` stay) |
-//! | Linux AppImage | rename the new AppImage over this one (fine while running), start it |
-//! | Linux `.deb` / `.rpm` | the system package manager, with the password prompt; then restart |
-//! | Linux Flatpak | reinstall the bundle on the same installation (per-user, or system-wide through `pkexec`); then restart |
 //!
-//! Anything else (FreeBSD, a development build) gets the download link instead.
+//! Anything else (a development build) gets the download link instead.
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};

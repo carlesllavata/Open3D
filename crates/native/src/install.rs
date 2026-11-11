@@ -1,26 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Installing, updating, removing and starting Open3D apps.
 //!
-//! Apps go where their platform keeps applications, installed the platform's own way:
-//!
-//! - macOS: the signed `.app` from the release DMG into `/Applications`.
-//! - Windows: the release MSI (Windows Installer), for the current user into
-//!   `%LOCALAPPDATA%\Programs\Open3D\<App>` by default. An update keeps the installed copy's folder
-//!   and scope (per-machine copies stay in `C:\Program Files\Open3D\<App>`).
-//! - Linux: the distro's own package (`.deb` through apt on the Debian family, `.rpm` through
-//!   dnf/zypper/rpm on the Fedora, Red Hat and SUSE families, read from `os-release`) with the
-//!   system's polkit password prompt; otherwise a Flatpak, otherwise an AppImage in
-//!   `~/Applications` (the AppImage convention), with a menu entry and icon in
-//!   `~/.local/share` so it shows up like any other app. A Flatpak or AppImage launcher prefers
-//!   its own format.
-//! - FreeBSD: the release's `/usr/local` tree, with a polkit prompt (or `~/.local` without one).
-//! - Linux, inside the Flatpak launcher with no usable host Flatpak (none installed, or
-//!   `flatpak-spawn` not allowed): the release tarball, unpacked into the launcher's own folder
-//!   (`<data>/apps/<app>`) and run inside the same sandbox with `HOME` pointed at a `home/`
-//!   folder beside it, so the app's settings stay in the sandbox too.
+//! Every Open3D app is a 3ds Max plug-in bundle, unpacked into
+//! `%APPDATA%\Autodesk\ApplicationPlugins\<App>.bundle` ([`crate::max_bundle`]).
 //!
 //! Every download is checked against its published SHA-256 before anything is unpacked, a
-//! running app is never replaced, and a new copy is fully in place before the old one goes.
+//! bundle is never changed while 3ds Max runs, and a new copy is fully in place before the old one goes.
 
 use std::path::{Path, PathBuf};
 

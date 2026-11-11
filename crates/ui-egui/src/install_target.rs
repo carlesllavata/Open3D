@@ -1,13 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Which package a fresh install would use, so the install-folder fields show the folder that
-//! install really goes into.
-//!
-//! It mirrors the backend's choice (`native::install::choose_kinds`, then `pick_asset`): the
-//! preferred formats first, then every other format this platform installs, each tried against
-//! every asset token. Choosing only the preferred format would show the portable `apps` folder
-//! for a release that ships only an MSI, which the backend then installs into Program Files.
-//! The UI cannot see a Linux machine's package managers, so there a fresh install answers nothing
-//! and the field keeps saying "System default".
+//! Which package an install would use: always the app's 3ds Max bundle (`native::install::choose_kinds`,
+//! then `pick_asset`), so the UI can tell whether a release has something to install.
 
 use open3d_launcher_core::platform::pick_asset;
 use open3d_launcher_core::{Asset, InstallSource, Installed, Os, PackageKind, Release, SuiteApp};

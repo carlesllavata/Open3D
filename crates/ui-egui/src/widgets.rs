@@ -5,7 +5,6 @@
 //! Upper-case text is drawn upper case but announced to screen readers as written.
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use egui::{Color32, CornerRadius, Galley, Rect, Response, RichText, Sense, Stroke, Ui, vec2};
 
@@ -22,31 +21,9 @@ pub fn tone_color(t: &Tokens, tone: Tone) -> Color32 {
     }
 }
 
-/// Whether the Georgian face in use draws Mtavruli (U+1C90–U+1CBF), the capitals Unicode maps
-/// Georgian letters to. Set when the face loads; until then, and without one, Georgian stays as
-/// written, since a face without them (DejaVu Sans, older Sylfaen) would draw boxes.
-static GEORGIAN_CAPS: AtomicBool = AtomicBool::new(false);
-
-#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-pub(crate) fn set_georgian_caps(on: bool) {
-    GEORGIAN_CAPS.store(on, Ordering::Relaxed);
-}
-
-/// `text` in upper case. Georgian goes to Mtavruli only when the face draws it.
+/// `text` in upper case.
 fn upper(text: &str) -> String {
-    upper_with(text, GEORGIAN_CAPS.load(Ordering::Relaxed))
-}
-
-/// [`upper`] with the face's Georgian capitals given rather than read from [`GEORGIAN_CAPS`].
-fn upper_with(text: &str, georgian_caps: bool) -> String {
-    text.chars().fold(String::with_capacity(text.len()), |mut out, c| {
-        if !georgian_caps && ('\u{10d0}'..='\u{10ff}').contains(&c) {
-            out.push(c);
-        } else {
-            out.extend(c.to_uppercase());
-        }
-        out
-    })
+    text.to_uppercase()
 }
 
 /// `text` laid out upper case in `family`, `spacing` points between letters.
@@ -882,7 +859,7 @@ mod tests {
     #[test]
     fn a_split_fits_its_width_and_steps_down_to_one_button() {
         let ctx = egui::Context::default();
-        crate::theme::install_fonts(&ctx, None);
+        crate::theme::install_fonts(&ctx);
         ctx.run_ui(egui::RawInput::default(), |_| {}).drop_without_applying_deltas();
         let lefts = ["Open 0.4.1", "Open"];
         let rights = ["Update to 0.5.0", "Update"];

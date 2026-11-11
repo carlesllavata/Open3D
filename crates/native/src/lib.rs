@@ -19,7 +19,6 @@ mod manifest;
 mod max_bundle;
 #[cfg(any(windows, test))]
 mod msi_context;
-mod packages;
 pub mod paths;
 mod pins;
 #[cfg(windows)]

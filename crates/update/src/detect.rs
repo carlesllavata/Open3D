@@ -1,13 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-//! Finding Open3D apps that are already installed, however they got there.
-//!
-//! - macOS: `<App>.app` in `/Applications` or `~/Applications`, read from its `Info.plist`.
-//! - Windows: the Windows Installer's uninstall entries (`Open3D`), and portable
-//!   copies the launcher unpacked.
-//! - Linux: AppImages in `~/Applications` (where the launcher and AppImageLauncher put them),
-//!   `~/AppImages` (Gear Lever) and `~/.local/bin`, Debian/RPM packages, Flatpaks, and tarball
-//!   installs.
-//! - FreeBSD: tarball installs and `/usr/local/bin/<app>`.
+//! The Windows Installer's own record of an MSI install (`Open3D`), for the launcher's self-update.
 
 use crate::{App, version};
 

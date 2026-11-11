@@ -9,8 +9,7 @@
 //!    catalog, cover every UI literal and plural key; the tests enforce that claim. A translation
 //!    that isn't finished yet starts with `complete_menus: false`: it still shows in
 //!    Preferences, strings without a row fall back to English, and the completeness tests
-//!    skip it until every row is done. A CJK or Georgian language also sets `script` and takes
-//!    its system font from `crate::cjk_font`.
+//!    skip it until every row is done.
 //!
 //! That is all: the Preferences dropdown, the system-locale match and the catalog tests
 //! (parse, placeholders, plural forms, coverage of every `tl!` literal) pick it up from the
@@ -36,5 +35,5 @@ mod translate;
 mod tests;
 
 pub use detect::{detect_system_lang_in_background, set_system_locales, set_test_lang, system_lang};
-pub use lang::{LANGUAGES, Lang, LangInfo, Script, lang_from_tag};
+pub use lang::{LANGUAGES, Lang, LangInfo, lang_from_tag};
 pub use translate::{current, fmt, has, message, msg, set_current, t, t_id, tn, tr, tr_ctx, tr_id, trn};

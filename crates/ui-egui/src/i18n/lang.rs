@@ -6,23 +6,6 @@ use std::sync::OnceLock;
 use super::catalog::Catalog;
 use super::detect::system_lang;
 
-/// The writing system a language is drawn in, and so the system font it needs. Languages that
-/// share one can share a face; Simplified and Traditional Chinese do not (they want different
-/// faces), so each script is its own. The bundled faces have no CJK or Georgian glyphs, so a
-/// language with a script borrows a system font for it (`crate::theme::cjk_font`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Script {
-    Chinese,
-    TraditionalChinese,
-    Japanese,
-    Georgian,
-}
-
-impl Script {
-    /// Every script a language can be written in.
-    pub const ALL: [Script; 4] = [Script::Chinese, Script::TraditionalChinese, Script::Japanese, Script::Georgian];
-}
-
 /// One supported UI language.
 pub struct LangInfo {
     /// Canonical BCP 47 code (`en`, `ru`, `zh-CN`, `zh-TW`, `de`, `fr`, `pt-BR`, `es`, `cs`, `pl`, `hu`, `ja`,
@@ -32,9 +15,6 @@ pub struct LangInfo {
     pub name: &'static str,
     /// The language's name in English, shown instead where its own script can't be drawn.
     pub english_name: &'static str,
-    /// The writing system this language is drawn in, or `None` if it needs no system font
-    /// (CJK, Georgian).
-    pub script: Option<Script>,
     /// Catalog file contents (empty for the built-in English).
     pub source: &'static str,
     /// Plural form index for a count (English, German, Spanish, Hungarian and Georgian: 0 = one,
@@ -59,7 +39,6 @@ pub static LANGUAGES: [LangInfo; 2] = [
         code: "en",
         name: "English",
         english_name: "English",
-        script: None,
         source: "",
         plural: plural_one_other,
         plural_forms: 2,
@@ -70,7 +49,6 @@ pub static LANGUAGES: [LangInfo; 2] = [
         code: "es",
         name: "Español",
         english_name: "Spanish",
-        script: None,
         source: include_str!("es.tsv"),
         plural: plural_one_other,
         plural_forms: 2,
@@ -145,16 +123,6 @@ impl Lang {
     /// The language's name in English.
     pub fn english_name(self) -> &'static str {
         self.0.english_name
-    }
-
-    /// Does drawing this language need a font from the system (CJK, Georgian)?
-    pub fn needs_cjk_font(self) -> bool {
-        self.0.script.is_some()
-    }
-
-    /// The writing system this language is drawn in, if it needs a system font.
-    pub fn script(self) -> Option<Script> {
-        self.0.script
     }
 
     /// Does this language's catalog claim to cover every `tl!` literal?

@@ -138,7 +138,7 @@ fn test_harness_builder<State>(theme: egui::Theme) -> egui_kittest::HarnessBuild
         .with_accessibility_check(true)
         .with_render_cursor(false)
         .with_context_setup(move |ctx| {
-            open3d_launcher_ui_egui::theme::install_fonts(ctx, None);
+            open3d_launcher_ui_egui::theme::install_fonts(ctx);
             egui_extras::install_image_loaders(ctx);
             open3d_launcher_ui_egui::theme::apply(ctx, choice);
         })

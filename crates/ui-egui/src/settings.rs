@@ -198,18 +198,10 @@ impl Settings {
         self.pinned.insert(to_index, item);
     }
 
-    /// Display name for a language `code`: a language's name in itself, from the registry
-    /// ([`LANGUAGES`](crate::i18n::LANGUAGES)). A language needing a CJK font is named in English,
-    /// with its own name added only while `installed` — the CJK face in the current font stack — is
-    /// that language (no other face draws it); "Auto" for `auto` and unknown codes, like
-    /// [`Lang::from_pref`](crate::i18n::Lang::from_pref).
-    pub fn language_label(code: &str, installed: Option<crate::i18n::Lang>) -> String {
-        match crate::i18n::Lang::from_code(code) {
-            Some(lang) if lang.needs_cjk_font() && installed == Some(lang) => format!("{} ({})", lang.english_name(), lang.name()),
-            Some(lang) if lang.needs_cjk_font() => lang.english_name().to_string(),
-            Some(lang) => lang.name().to_string(),
-            None => t("Auto").to_string(),
-        }
+    /// Display name for a language `code`: the language's name in itself; "Auto" for `auto` and
+    /// unknown codes, like [`Lang::from_pref`](crate::i18n::Lang::from_pref).
+    pub fn language_label(code: &str) -> String {
+        crate::i18n::Lang::from_code(code).map_or_else(|| t("Auto").to_string(), |lang| lang.name().to_string())
     }
 }
 

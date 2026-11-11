@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! "Start Open3D Launcher when I log in".
 //!
-//! - macOS: a LaunchAgent in `~/Library/LaunchAgents`.
-//! - Windows: a value under `HKCU\…\CurrentVersion\Run`.
-//! - Linux and FreeBSD: an XDG autostart entry in `~/.config/autostart` (the host's, from the
-//!   Flatpak, starting the app through `flatpak run`).
+//! A value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
 //!
 //! The launcher starts hidden in the tray when it's started this way (`--hidden`).
 

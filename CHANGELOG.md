@@ -7,6 +7,13 @@ What each version of the Open3D Launcher adds, newest first.
 - **A warning for duplicate copies of an app.** When 3ds Max's plug-in folder holds another copy of an
   app, such as a development bundle (`OpenTools-dev.bundle` next to `OpenTools.bundle`), the app's card
   names it and reminds you that 3ds Max loads only one of them.
+- **Going back to an older version works.** Choosing an older version of an app was always refused; the
+  plug-in you have now stays in place until the older one is installed, so nothing is lost if it fails.
+- **The launcher's own versions show in Preferences.** The list of launcher versions was empty on
+  Windows.
+- **A smaller, simpler launcher.** Code it inherited for other systems (macOS, Linux) and for
+  install formats Open3D doesn't use is gone, along with the install-format and install-folder
+  settings, which never applied to 3ds Max plug-ins.
 
 ## 0.2.0 — 11 November 2026
 

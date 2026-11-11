@@ -9,8 +9,6 @@ use egui::epaint::text::VariationCoords;
 use egui::{Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, FontTweak, Stroke, TextStyle, Visuals};
 use serde::{Deserialize, Serialize};
 
-use crate::i18n::Lang;
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ThemeChoice {
     /// Follow the system's light or dark setting.
@@ -293,11 +291,9 @@ pub fn mono_bold() -> FontFamily {
 /// A font registered under `name`: its file, its variation coordinates and its family.
 type Face<'a> = (&'a str, &'static [u8], &'a [([u8; 4], f32)], FontFamily);
 
-/// Registers the site's three variable fonts, each at the weights (and width) it uses there.
-/// `cjk`: the CJK language to draw, whose system font is added behind everything else, or `None`
-/// for a language that needs no CJK font.
-pub fn install_fonts(ctx: &egui::Context, cjk: Option<Lang>) {
-    ctx.set_fonts(font_definitions(cjk));
+/// Registers the three bundled variable fonts, each at the weights (and width) it uses.
+pub fn install_fonts(ctx: &egui::Context) {
+    ctx.set_fonts(font_definitions());
 }
 
 /// The font stack both the native and the web app use.
@@ -305,10 +301,8 @@ pub fn install_fonts(ctx: &egui::Context, cjk: Option<Lang>) {
 /// It starts from egui's `default_fonts` and enables `monochrome_emoji_fonts` at the workspace
 /// level, so arbitrary release-note, feed and alert text keeps the monochrome emoji coverage 0.36
 /// provided on every target, web included. The fixed gear and refresh controls stay painter-drawn
-/// [`crate::widgets::Glyph`]s rather than font glyphs. The one optional extra is a system CJK face,
-/// added only when the desktop selected a CJK language; neither a CJK face nor a system-font
-/// provider is bundled.
-fn font_definitions(cjk: Option<Lang>) -> FontDefinitions {
+/// [`crate::widgets::Glyph`]s rather than font glyphs.
+fn font_definitions() -> FontDefinitions {
     const INTER: &[u8] = include_bytes!("../../../assets/fonts/Inter-Variable.ttf");
     const ARCHIVO: &[u8] = include_bytes!("../../../assets/fonts/Archivo-Variable.ttf");
     const GEIST_MONO: &[u8] = include_bytes!("../../../assets/fonts/GeistMono-Variable.ttf");
@@ -333,49 +327,7 @@ fn font_definitions(cjk: Option<Lang>) -> FontDefinitions {
         stack.extend(fallback.iter().cloned());
         fonts.families.insert(family, stack);
     }
-    // The CJK face, behind everything else, from the system: only when asked for, as the font is
-    // large.
-    if let Some(lang) = cjk
-        && let Some(font) = cjk_font(lang)
-    {
-        fonts.font_data.insert("CJK".to_owned(), font);
-        for stack in fonts.families.values_mut() {
-            stack.push("CJK".to_owned());
-        }
-    }
     fonts
-}
-
-/// The system's font for a CJK language, read once per language (tens of MB). Desktop only: the
-/// web build has none, so CJK text can't be drawn there.
-pub fn cjk_font(lang: Lang) -> Option<Arc<FontData>> {
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        CJK_FONTS.lock().unwrap_or_else(std::sync::PoisonError::into_inner).entry(lang.code()).or_insert_with(|| load_cjk(lang)).clone()
-    }
-    #[cfg(target_arch = "wasm32")]
-    {
-        let _ = lang;
-        None
-    }
-}
-
-/// Loads the system font for the CJK language `lang`: the face for its script, or `None` where the
-/// system has none. Nothing falls back to another script's face — a face for a different script
-/// leaves its characters as tofu — so a language without its font stays in English, like any other.
-#[cfg(not(target_arch = "wasm32"))]
-fn load_cjk(lang: Lang) -> Option<Arc<FontData>> {
-    crate::cjk_font::load(lang.script()?).map(Arc::new)
-}
-
-/// The system fonts looked for so far, by language code.
-#[cfg(not(target_arch = "wasm32"))]
-static CJK_FONTS: std::sync::Mutex<std::collections::BTreeMap<&str, Option<Arc<FontData>>>> =
-    std::sync::Mutex::new(std::collections::BTreeMap::new());
-
-/// Can the CJK language `lang` be drawn? Loads the system font on the first call ([`cjk_font`]).
-pub fn cjk_font_available(lang: Lang) -> bool {
-    cjk_font(lang).is_some()
 }
 
 #[cfg(test)]
@@ -387,7 +339,7 @@ mod tests {
     /// The same function is used by the desktop and web builds, so this upper bound holds for both.
     #[test]
     fn production_fonts_are_latin_plus_attributed_monochrome_fallbacks() {
-        let fonts = font_definitions(None);
+        let fonts = font_definitions();
         for expected in ["Inter", "Inter-Medium", "Inter-SemiBold", "Archivo-Display", "GeistMono", "GeistMono-Medium", "GeistMono-Bold"] {
             assert!(fonts.font_data.contains_key(expected), "missing bundled face {expected}: {:?}", fonts.font_data.keys().collect::<Vec<_>>());
         }
@@ -416,7 +368,7 @@ mod tests {
             "What's Changed: Faster exports 🚀 and fewer bugs 🐛 — New templates 🎨, ",
             "warnings ⚠ and a celebration 🎉 — Open3D news: ✨ ✅ ❌ 💡 🔒"
         );
-        let fonts = font_definitions(None);
+        let fonts = font_definitions();
         assert_eq!(
             fonts.font_data.len(),
             12,
@@ -424,7 +376,7 @@ mod tests {
             fonts.font_data.keys().collect::<Vec<_>>()
         );
         let ctx = egui::Context::default();
-        install_fonts(&ctx, None);
+        install_fonts(&ctx);
         let mut output = ctx.run_ui(egui::RawInput::default(), |_| {});
         output.textures_delta.clear();
         for family in [FontFamily::Proportional, FontFamily::Monospace, medium(), semibold(), display(), mono(), mono_bold()] {

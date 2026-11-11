@@ -6,9 +6,8 @@
 //! opened, a file dropped on the icon, an old login entry's leftovers. An argument the launcher
 //! cannot read is ignored in the same way, rather than ending the start-up before the window.
 //!
-//! `--version` is the only thing the launcher does without opening a window, and the packaging
-//! scripts use it as their smoke test (`packaging/linux/package.sh` runs it on the staged binary,
-//! under an emulator for a foreign architecture), so it is what a test can ask for from here.
+//! `--version` is the only thing the launcher does without opening a window, so it is what a test
+//! can ask for from here.
 
 use std::process::Command;
 

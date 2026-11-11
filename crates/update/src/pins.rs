@@ -5,12 +5,8 @@
 //! own update check reads it, so an app kept on an older release, or on nightlies, is not offered
 //! the latest stable release every time it starts. Only the launcher writes the file; apps read.
 //!
-//! The file sits in a folder of its own, `Open3D/versions` in the host's per-user data folder
-//! (`%LOCALAPPDATA%`, `~/Library/Application Support`, `$XDG_DATA_HOME` or `~/.local/share`),
-//! never in the launcher's own folder: a Flatpak launcher's own folder is inside its sandbox, and a
-//! Flatpak app can be given read access to this one folder alone
-//! (`--filesystem=xdg-data/Open3D/versions:ro`) without seeing the launcher's settings.
-//! Inside a Flatpak, the host's folder is used (see [`crate::folders::host_data_local_dir`]).
+//! The file sits in a folder of its own, `Open3D\versions` under `%LOCALAPPDATA%`, never in the
+//! launcher's own folder.
 //!
 //! Invariants:
 //! - A missing, unreadable or damaged file means every app follows stable releases, as before.
