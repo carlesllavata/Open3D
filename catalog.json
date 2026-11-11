@@ -1,12 +1,12 @@
 {
   "schema": 1,
   "launcher": {
-    "version": "0.1.0",
+    "version": "0.1.1",
     "date": "2026-11-11",
-    "url": "https://github.com/carlesllavata/Open3D/releases/download/launcher-v0.1.0/Open3D-Launcher-0.1.0.exe",
-    "sha256": "9fb460ec03e9564b6aad2fa48e1551a7880eb5b4db98381d76d02c520b6eb371",
-    "size": 15309824,
-    "notes": "The first version of the launcher: one place to install, update and remove the Open3D apps for 3ds Max.\n\n- **Install the launcher with one click.** Run the downloaded `Open3D-Launcher-0.1.0.exe` and choose\n  **Install**: it goes in your user folder (no administrator rights), with a Start menu shortcut and, if you\n  want, a desktop one. **Run without installing** works too.\n- **Remove it like any other program**, from Windows' *Settings > Apps > Installed apps*. The apps you\n  installed with it stay in 3ds Max.\n- **Scripted installs:** `--install` installs the launcher without a window, and `--uninstall --quiet` removes\n  it without asking.\n- **The launcher updates itself.** When a newer launcher is published, a bar at the top offers to update it;\n  the new version is checked before it replaces the old one, and it restarts on its own.\n- **Install, update and remove apps.** The launcher lists the Open3D apps with the version you have and the\n  latest one, and installs each app as a 3ds Max plug-in bundle in `ApplicationPlugins`: per user, no\n  administrator rights, and every 3ds Max from 2025 on picks it up. Removing an app keeps its settings.\n- **Safe updates.** Every download is checked against the catalog before anything changes; a damaged\n  download is refused and the version you had stays in place. An update interrupted halfway is put right\n  the next time the launcher starts.\n- **3ds Max must be closed** to install, update or remove an app; the launcher says so and waits.\n- **Development copies are flagged.** If a second copy of an app is in the plug-in folder (for example\n  `OpenTools-dev.bundle`), the launcher warns you, because 3ds Max loads only one of them.\n- **What's new in each version** is shown next to the app, taken from its changelog.\n- Free software under the GNU GPL v3 or later.\n\nThe launcher isn't code-signed yet: the first time you run it, Windows SmartScreen may show \"Windows\nprotected your PC\". Choose **More info > Run anyway**."
+    "url": "https://github.com/carlesllavata/Open3D/releases/download/launcher-v0.1.1/Open3D-Launcher-0.1.1.exe",
+    "sha256": "c1a0b17617674ffa1afa9c22d5a0a6603dec9554af37da3335da8410cd67be33",
+    "size": 15310336,
+    "notes": "- **New app versions show up right away.** The launcher now always reads the current catalog: before, a\n  version published a moment ago could take up to five minutes to appear, because GitHub keeps the catalog\n  in a short-lived cache."
   },
   "apps": [
     {
