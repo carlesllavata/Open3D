@@ -39,6 +39,22 @@ pub(crate) fn last_updated(e: &AppEntry) -> Option<String> {
     Some(fmt(tl!("Last updated: {date}"), &[("date", &crate::views::date_text(at))]))
 }
 
+/// The warning for other copies of the app in 3ds Max's plug-in folder (a development bundle such as
+/// `OpenTools-dev.bundle`), as the card's short line and its longer hover text. `None` when there
+/// are none.
+pub(crate) fn other_copies_note(e: &AppEntry) -> Option<(String, String)> {
+    if e.other_copies.is_empty() {
+        return None;
+    }
+    let copies = e.other_copies.join(", ");
+    let line = fmt(tl!("Also installed: {copies}. 3ds Max loads only one copy."), &[("copies", &copies)]);
+    let tip = fmt(
+        tl!("3ds Max ignores the other copies of {name}. Keep only one in the ApplicationPlugins folder to be sure which one runs."),
+        &[("name", e.app.name)],
+    );
+    Some((line, tip))
+}
+
 /// `text` in at most `rows` lines, ending in "…" when it is cut.
 pub(crate) fn blurb(ui: &mut Ui, text: &str, color: Color32, rows: usize) {
     let mut job = egui::text::LayoutJob::simple(text.to_string(), FontId::proportional(13.0), color, ui.available_width());
@@ -47,4 +63,20 @@ pub(crate) fn blurb(ui: &mut Ui, text: &str, color: Color32, rows: usize) {
     job.wrap.overflow_character = Some('…');
     // Not selectable, so a click on the text still opens the app's page.
     ui.add(egui::Label::new(job).selectable(false));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn other_copies_are_named_only_when_there_are_some() {
+        let app = open3d_launcher_core::SuiteApp::by_id("opentools").expect("OpenTools is in the catalog");
+        let mut e = AppEntry::new(app);
+        assert_eq!(other_copies_note(&e), None);
+        e.other_copies = vec!["OpenTools-dev.bundle".into(), "OpenTools-old.bundle".into()];
+        let (line, tip) = other_copies_note(&e).expect("a note for other copies");
+        assert!(line.contains("OpenTools-dev.bundle, OpenTools-old.bundle"), "{line}");
+        assert!(line.contains("3ds Max") && tip.contains("OpenTools"), "{line} / {tip}");
+    }
 }

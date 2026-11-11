@@ -230,6 +230,9 @@ pub enum Event {
     Detected {
         app: String,
         installed: Option<Installed>,
+        /// Other copies of the app where its host program loads plug-ins (`OpenTools-dev.bundle`
+        /// beside `OpenTools.bundle`), by folder name: 3ds Max loads only one of them.
+        other_copies: Vec<String>,
     },
     Progress {
         app: String,

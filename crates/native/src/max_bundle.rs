@@ -76,7 +76,12 @@ pub fn detect(app: &SuiteApp) -> Option<Installed> {
 /// Other bundles of the same app in the plug-in folder (`OpenTools-dev.bundle`): 3ds Max loads only
 /// the first one it finds.
 pub fn other_copies(app: &SuiteApp) -> Vec<String> {
-    let (Some(plugins), stem) = (plugins_dir(), app.name.to_ascii_lowercase()) else { return Vec::new() };
+    plugins_dir().map(|plugins| other_copies_in(app, &plugins)).unwrap_or_default()
+}
+
+/// [other_copies] in the plug-in folder `plugins`, sorted by name.
+pub(crate) fn other_copies_in(app: &SuiteApp, plugins: &Path) -> Vec<String> {
+    let stem = app.name.to_ascii_lowercase();
     let own = bundle_name(app).to_ascii_lowercase();
     let Ok(entries) = std::fs::read_dir(plugins) else { return Vec::new() };
     let mut found: Vec<String> = entries
@@ -316,6 +321,23 @@ mod tests {
         recover(&a, &plugins).unwrap();
         assert_eq!(bundle_version(&plugins.join("OpenTools.bundle")).as_deref(), Some("0.5.0"));
         assert_eq!(names(&plugins), ["OpenTools.bundle"]);
+    }
+
+    #[test]
+    fn finds_other_copies_of_the_app_only() {
+        let tmp = tempfile::tempdir().unwrap();
+        let plugins = tmp.path();
+        let a = app();
+        assert!(other_copies_in(&a, &plugins.join("missing")).is_empty());
+        for dir in ["OpenTools.bundle", "opentools-dev.bundle", "OpenTools-old.bundle", "OpenManager.bundle", "VRay3dsMax2027", ".open3d-opentools"] {
+            std::fs::create_dir_all(plugins.join(dir)).unwrap();
+        }
+        // A file with a bundle's name is not a bundle.
+        std::fs::write(plugins.join("OpenTools-copy.bundle"), b"").unwrap();
+        assert_eq!(other_copies_in(&a, plugins), ["OpenTools-old.bundle", "opentools-dev.bundle"]);
+        // Found whether or not the app itself is installed: installing it would make two copies.
+        std::fs::remove_dir_all(plugins.join("OpenTools.bundle")).unwrap();
+        assert_eq!(other_copies_in(&a, plugins), ["OpenTools-old.bundle", "opentools-dev.bundle"]);
     }
 
     #[test]

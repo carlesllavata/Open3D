@@ -2,6 +2,12 @@
 
 What each version of the Open3D Launcher adds, newest first.
 
+## In development
+
+- **A warning for duplicate copies of an app.** When 3ds Max's plug-in folder holds another copy of an
+  app, such as a development bundle (`OpenTools-dev.bundle` next to `OpenTools.bundle`), the app's card
+  names it and reminds you that 3ds Max loads only one of them.
+
 ## 0.2.0 — 11 November 2026
 
 A new launcher, rebuilt on the open-source code of [ArtCraft Launcher](https://github.com/storytold/craft-launcher)

@@ -681,8 +681,17 @@ impl LauncherUi {
                     .on_hover_text(Self::sizes_text(&sizes));
             }
         }
+        // Another copy of the app in 3ds Max's plug-in folder (a development bundle): Max loads only
+        // one, so say so. The description gives up two lines to keep the card's height.
+        let other_copies = crate::card_parts::other_copies_note(&entry);
+        if let Some((line, tip)) = &other_copies {
+            let warn = widgets::tone_color(&t, model::Tone::Warn);
+            ui.add(egui::Label::new(RichText::new(line).size(12.5).color(warn)).truncate().selectable(false))
+                .on_hover_text(format!("{line}\n\n{tip}"));
+            ui.add_space(6.0);
+        }
         if let Some(details) = AppDetails::by_id(id) {
-            crate::card_parts::blurb(ui, details.headline, t.muted, 4);
+            crate::card_parts::blurb(ui, details.headline, t.muted, if other_copies.is_some() { 2 } else { 4 });
         }
         if let Some(line) = crate::card_parts::last_updated(&entry) {
             ui.add_space(6.0);

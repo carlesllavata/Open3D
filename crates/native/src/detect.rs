@@ -57,6 +57,13 @@ pub fn detect(app: &SuiteApp, manifest: &Manifest, snapshot: &Snapshot) -> Optio
     None
 }
 
+/// Other copies of `app` beside the one [`detect`] reports, by folder name: development or renamed
+/// bundles (`OpenTools-dev.bundle`) in 3ds Max's plug-in folder, of which Max loads only one.
+/// Reported whether or not the app itself is installed, since installing it would add another.
+pub fn other_copies(app: &SuiteApp) -> Vec<String> {
+    crate::max_bundle::other_copies(app)
+}
+
 fn from_manifest(app: &SuiteApp, manifest: &Manifest) -> Option<Installed> {
     let rec = manifest.apps.get(app.id)?;
     if !rec.path.exists() {

@@ -28,11 +28,24 @@ pub struct AppEntry {
     /// `None` where it gives none (the web build), and then [`Self::has_download`] decides. Only
     /// read while a copy is installed.
     pub installable: Option<bool>,
+    /// Other copies of the app 3ds Max would see (`OpenTools-dev.bundle`), by folder name.
+    pub other_copies: Vec<String>,
 }
 
 impl AppEntry {
     pub fn new(app: &'static SuiteApp) -> Self {
-        Self { app, latest: None, installed: None, detected: false, job: None, origin: None, paused: None, ready: false, installable: None }
+        Self {
+            app,
+            latest: None,
+            installed: None,
+            detected: false,
+            job: None,
+            origin: None,
+            paused: None,
+            ready: false,
+            installable: None,
+            other_copies: Vec::new(),
+        }
     }
 
     pub fn release(&self) -> Option<&Release> {

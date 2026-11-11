@@ -1063,13 +1063,14 @@ fn publish_latest(app: &SuiteApp, latest: LatestRelease, from: Origin, shared: &
 }
 
 /// Records what is installed of `app` (`found`) and tells the UI, with whether an install would
-/// go ahead to replace it, in one batch.
+/// go ahead to replace it and any other copies 3ds Max would see, in one batch.
 fn publish_detected(app: &SuiteApp, found: Option<Installed>, shared: &Shared, platform: Option<Platform>) {
     let system = found.is_some().then(|| shared.system_kinds());
+    let other_copies = crate::detect::other_copies(app);
     let _reporting = shared.reporting.lock().unwrap_or_else(PoisonError::into_inner);
     shared.store_detected(app.id, found.as_ref());
     let installable = installable_event(app, shared, platform, system);
-    shared.emit_all(installable.into_iter().chain([Event::Detected { app: app.id.to_string(), installed: found }]));
+    shared.emit_all(installable.into_iter().chain([Event::Detected { app: app.id.to_string(), installed: found, other_copies }]));
 }
 
 /// Tells the UI whether `app` has a paused download waiting, or a finished one to install, and

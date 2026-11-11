@@ -198,7 +198,7 @@ fn events() -> Vec<Event> {
             origin: None,
             installation: None,
         });
-        ev.push(Event::Detected { app: app.id.into(), installed: inst });
+        ev.push(Event::Detected { app: app.id.into(), installed: inst, other_copies: Vec::new() });
     }
     ev.push(Event::Progress { app: "filmtool".into(), phase: JobPhase::Downloading { done: 48 << 20, total: 131 << 20 } });
     ev.push(Event::Paused { app: "decktool".into(), download: Some(PausedDownload { done: 30 << 20, total: 120 << 20 }) });

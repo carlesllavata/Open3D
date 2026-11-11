@@ -583,9 +583,10 @@ impl LauncherUi {
                 self.pictures.insert((app, key), crate::details::Picture::from_result(result));
                 true
             }
-            Event::Detected { app, installed } => {
+            Event::Detected { app, installed, other_copies } => {
                 if let Some(e) = self.entry_mut(&app) {
                     e.installed = installed;
+                    e.other_copies = other_copies;
                     e.detected = true;
                 }
                 true

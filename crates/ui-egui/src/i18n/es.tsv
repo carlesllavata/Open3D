@@ -371,6 +371,8 @@ filter	Installed	Instaladas
 	Previous app	Aplicación anterior
 	Show {n} more changes	Mostrar {n} cambios más
 	Last updated: {date}	Última actualización: {date}
+	Also installed: {copies}. 3ds Max loads only one copy.	También instalada: {copies}. 3ds Max solo carga una copia.
+	3ds Max ignores the other copies of {name}. Keep only one in the ApplicationPlugins folder to be sure which one runs.	3ds Max ignora las demás copias de {name}. Deja solo una en la carpeta ApplicationPlugins para saber con certeza cuál se ejecuta.
 column	Version	Versión
 column	Author	Autor
 	Choose version	Elegir versión
