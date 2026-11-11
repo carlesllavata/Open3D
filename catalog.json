@@ -1,12 +1,12 @@
 {
   "schema": 1,
   "launcher": {
-    "version": "0.1.1",
+    "version": "0.1.2",
     "date": "2026-11-11",
-    "url": "https://github.com/carlesllavata/Open3D/releases/download/launcher-v0.1.1/Open3D-Launcher-0.1.1.exe",
-    "sha256": "c1a0b17617674ffa1afa9c22d5a0a6603dec9554af37da3335da8410cd67be33",
-    "size": 15310336,
-    "notes": "- **New app versions show up right away.** The launcher now always reads the current catalog: before, a\n  version published a moment ago could take up to five minutes to appear, because GitHub keeps the catalog\n  in a short-lived cache."
+    "url": "https://github.com/carlesllavata/Open3D/releases/download/launcher-v0.1.2/Open3D-Launcher-0.1.2.exe",
+    "sha256": "ed2022adf6519749df7fb4b4a436531402d5f4175a20800df46b99805e113e1c",
+    "size": 15322624,
+    "notes": "- **New app versions now really show up within a minute.** The launcher reads the catalog through GitHub's API,\n  whose cache lasts at most a minute; if that fails, it reads it the old way. The fix in 0.1.1 didn't work:\n  GitHub's 5-minute cache for the catalog file ignores the trick 0.1.1 used."
   },
   "apps": [
     {
