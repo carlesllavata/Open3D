@@ -9,6 +9,8 @@ What each version of the Open3D Launcher adds, newest first.
 - **Only one launcher at a time, again.** Another program on your computer could use the same local port as the
   launcher, and then a second launcher could open next to the first. The launcher now has a port of its own, and
   asks a launcher up to 0.3.0 that is still running to make way.
+- **Release notes read better.** Bold text shows in bold instead of between asterisks, and a change that runs
+  over several lines stays one item of the list.
 
 ## 0.3.0 — 12 November 2026
 

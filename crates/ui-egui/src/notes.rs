@@ -35,6 +35,72 @@ pub(crate) fn classify(line: &str) -> Line<'_> {
     Line::Text(l)
 }
 
+/// The notes as Markdown reads them: a line that only carries on the previous bullet or paragraph
+/// (the source wraps long lines) is joined to it, so a wrapped change stays one bullet.
+pub(crate) fn logical_lines(notes: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let mut open = false;
+    for raw in notes.lines() {
+        match (classify(raw), out.last_mut()) {
+            (Line::Text(text), Some(last)) if open && !text.starts_with("**Full Changelog**") => {
+                last.push(' ');
+                last.push_str(text);
+            }
+            (line, _) => {
+                open = matches!(line, Line::Bullet(..) | Line::Text(_));
+                out.push(raw.trim_end().to_string());
+            }
+        }
+    }
+    out
+}
+
+/// `text` cut at its `**bold**` marks: each piece and whether it is bold. As in Markdown, the bold
+/// text can't start or end with a space; a `**` without such a partner stays as written.
+pub(crate) fn spans(text: &str) -> Vec<(&str, bool)> {
+    let mut out = Vec::new();
+    // `plain`: where the current plain piece starts; `at`: where to look for the next mark.
+    let (mut plain, mut at) = (0, 0);
+    while let Some(found) = text[at..].find("**") {
+        let open = at + found;
+        let inner = open + 2;
+        match text[inner..].find("**").map(|n| inner + n) {
+            Some(close) if is_bold(&text[inner..close]) => {
+                if open > plain {
+                    out.push((&text[plain..open], false));
+                }
+                out.push((&text[inner..close], true));
+                plain = close + 2;
+                at = plain;
+            }
+            _ => at = inner,
+        }
+    }
+    if plain < text.len() {
+        out.push((&text[plain..], false));
+    }
+    out
+}
+
+fn is_bold(inner: &str) -> bool {
+    !inner.is_empty() && !inner.starts_with(char::is_whitespace) && !inner.ends_with(char::is_whitespace)
+}
+
+/// A label with the `**bold**` parts of `text` in the semibold face, after `bullet` if given (in the
+/// same text, so both sit on one baseline).
+fn rich_label(ui: &mut Ui, bullet: Option<egui::Color32>, text: &str, color: egui::Color32) {
+    let size = egui::TextStyle::Body.resolve(ui.style()).size;
+    let mut job = egui::text::LayoutJob::default();
+    if let Some(bullet) = bullet {
+        job.append("•  ", 0.0, egui::TextFormat { font_id: egui::FontId::proportional(size), color: bullet, ..Default::default() });
+    }
+    for (piece, bold) in spans(text) {
+        let family = if bold { crate::theme::semibold() } else { egui::FontFamily::Proportional };
+        job.append(piece, 0.0, egui::TextFormat { font_id: egui::FontId::new(size, family), color, ..Default::default() });
+    }
+    ui.label(job);
+}
+
 /// How many changes show before the rest folds away.
 const SHOWN: usize = 6;
 
@@ -60,7 +126,8 @@ fn show_lines(ui: &mut Ui, notes: &str, scale: f32) {
         ui.label(RichText::new(tl!("No notes were published with this release.")).color(t.muted));
         return;
     }
-    let (changelog, lines): (Vec<Line<'_>>, Vec<Line<'_>>) = notes.lines().map(classify).partition(|l| full_changelog(l).is_some());
+    let logical = logical_lines(notes);
+    let (changelog, lines): (Vec<Line<'_>>, Vec<Line<'_>>) = logical.iter().map(|l| classify(l)).partition(|l| full_changelog(l).is_some());
     let bullets = lines.iter().filter(|l| matches!(l, Line::Bullet(..))).count();
     let (head, rest) = lines.split_at(fold_at(&lines).unwrap_or(lines.len()));
     for line in head {
@@ -108,8 +175,7 @@ fn draw(ui: &mut Ui, line: &Line<'_>, t: &Tokens, scale: f32) {
             let text = text.rsplit_once(" by @").map_or(*text, |(change, _)| change);
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.x = 4.0;
-                ui.label(RichText::new("•").color(t.faint));
-                ui.label(RichText::new(text).color(t.ink));
+                rich_label(ui, Some(t.faint), text, t.ink);
                 if let Some(url) = link.filter(|u| open3d_launcher_core::release::safe_web_link(u)) {
                     let short = url.rsplit('/').next().map_or_else(|| tl!("link").to_string(), |n| format!("#{n}"));
                     ui.hyperlink_to(RichText::new(short).size(12.0 * scale), url);
@@ -117,7 +183,7 @@ fn draw(ui: &mut Ui, line: &Line<'_>, t: &Tokens, scale: f32) {
             });
         }
         Line::Text(text) => {
-            ui.label(RichText::new(*text).color(t.muted));
+            rich_label(ui, None, text, t.muted);
         }
         Line::Blank => {
             ui.add_space(2.0);
@@ -139,6 +205,28 @@ mod tests {
         assert_eq!(classify("- plain bullet"), Line::Bullet("plain bullet", None));
         assert_eq!(classify("   "), Line::Blank);
         assert_eq!(classify("hello"), Line::Text("hello"));
+    }
+
+    #[test]
+    fn bold_marks_become_bold_pieces() {
+        assert_eq!(spans("**Fast passes.** Masks render in seconds."), vec![("Fast passes.", true), (" Masks render in seconds.", false)]);
+        assert_eq!(spans("a **b** c **d**"), vec![("a ", false), ("b", true), (" c ", false), ("d", true)]);
+        assert_eq!(spans("no marks"), vec![("no marks", false)]);
+        // An unpaired mark is left as written.
+        assert_eq!(spans("2 ** 3 and **x"), vec![("2 ** 3 and **x", false)]);
+        assert_eq!(spans("**a** then **b"), vec![("a", true), (" then **b", false)]);
+        assert!(spans("").is_empty());
+    }
+
+    #[test]
+    fn wrapped_bullets_and_paragraphs_are_joined() {
+        let notes = "Intro that\nwraps.\n\n- **One.** First\n  line wraps.\n- Two\n\n**Full Changelog**: https://github.com/a/b/compare/v1...v2";
+        assert_eq!(
+            logical_lines(notes),
+            vec!["Intro that wraps.", "", "- **One.** First line wraps.", "- Two", "", "**Full Changelog**: https://github.com/a/b/compare/v1...v2"]
+        );
+        // A heading never takes the next line in.
+        assert_eq!(logical_lines("## Title\ntext"), vec!["## Title", "text"]);
     }
 
     #[test]
