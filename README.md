@@ -4,22 +4,26 @@ Open-source tools that make 3D work faster, starting with 3ds Max.
 
 This repository holds the **Open3D Launcher**: one place to install, update and remove the Open3D apps and
 to see what's new in each version. It is a fork of [ArtCraft Launcher](https://github.com/storytold/craft-launcher)
-adapted to 3ds Max plug-ins (see [Credits](#credits)).
+adapted to the Open3D apps: 3ds Max plug-ins and standalone programs (see [Credits](#credits)).
 
 ## Open3D Launcher
 
 - Lists the Open3D apps with the version you have and the latest one, with each version's release notes.
-- Installs each app as a 3ds Max plug-in bundle in `%APPDATA%\Autodesk\ApplicationPlugins`: per user, no
+- Installs each 3ds Max app as a plug-in bundle in `%APPDATA%\Autodesk\ApplicationPlugins`: per user, no
   administrator rights, and every 3ds Max from 2025 on loads it. **Open in 3ds Max** starts the newest 3ds Max
   you have.
+- Installs each standalone app (a program of its own, such as OpenView) in
+  `%LOCALAPPDATA%\Programs\Open3D\<App>`, also per user and without administrator rights, with shortcuts in
+  the Start menu and on the desktop. **Open** starts it.
 - Reads each app's versions from that app's own GitHub releases, and checks every download against its
   published SHA-256 before touching anything; a failed or interrupted update puts the previous version back.
-- Never changes a plug-in while 3ds Max is open: close it first and the launcher tells you so.
+- Never changes a plug-in while 3ds Max is open, nor a standalone app while it is running: close it first
+  and the launcher tells you so.
 - Updates itself. It keeps running in the notification area when you close its window and can start with
   Windows (both in *Preferences*).
 - English and Spanish. No account, no sign-in, no telemetry.
 
-Requirements: Windows 10 or 11 (64-bit), 3ds Max 2025 or newer.
+Requirements: Windows 10 or 11 (64-bit); 3ds Max 2025 or newer for the 3ds Max apps.
 
 ## Download and install
 
@@ -34,10 +38,10 @@ From the [latest release](https://github.com/carlesllavata/Open3D/releases/lates
 The launcher isn't code-signed, so the first time Windows SmartScreen may say "Windows protected your PC":
 choose **More info > Run anyway**. Updates are checked against the checksums published with each release.
 
-Removing the launcher leaves the apps you installed with it in 3ds Max: remove them from the launcher first
-if you want them gone.
+Removing the launcher leaves the apps you installed with it where they are: remove them from the launcher
+first if you want them gone. Removing an app keeps its settings.
 
-> Status: early (v0.2.1). What each version adds: [CHANGELOG.md](CHANGELOG.md).
+> Status: early (v0.3.0). What each version adds: [CHANGELOG.md](CHANGELOG.md).
 
 ### Apps
 
@@ -47,8 +51,8 @@ if you want them gone.
 - **OpenManager**: scene setups and batch rendering for 3ds Max (Corona and V-Ray; reads Pulze Scene Manager
   setups). [carlesllavata/OpenManager](https://github.com/carlesllavata/OpenManager)
 
-- **OpenView** (in development, after 0.2.1): downloads 360 panoramas and photos from map applications at
-  full resolution, with a 360 viewer, crops and HDRIs. A program of its own: it doesn't need 3ds Max.
+- **OpenView**: downloads 360 panoramas and photos from map applications at full resolution, with a 360
+  viewer, crops and HDRIs. A program of its own: it doesn't need 3ds Max.
   [carlesllavata/OpenView](https://github.com/carlesllavata/OpenView)
 
 More apps are added to the catalog as they are published.
@@ -60,14 +64,15 @@ More apps are added to the catalog as they are published.
   (`launcher-catalog.toml.sig`) matches the public key built into the launcher
   (`crates/core/assets/launcher-catalog-public-key.pem`); otherwise it keeps the built-in list.
 - **Versions.** Each app lives in its own public repository (`carlesllavata/<App>`), and each release tagged
-  `vX.Y.Z` carries `<id>-<version>-windows-x64-3dsmax.zip` (the `.bundle` folder at the zip's root) and
-  `SHA256SUMS.txt`. The launcher asks GitHub for the latest release, at most once an hour unless you press
-  *Check for updates*.
-- **Standalone apps** (in development, after 0.2.1). An app the catalog marks `package = "standalone"` is a
-  program of its own: its release carries `<id>-<version>-windows-x64.zip` with `<App>.exe` at the zip's
-  root, and the exe's file properties must say the release's version. The launcher unpacks it into
-  `%LOCALAPPDATA%\Programs\Open3D\<App>`, adds Start menu and desktop shortcuts on a first install, starts
-  it with **Open**, and never replaces or removes it while it is running. OpenView is the first one.
+  `vX.Y.Z` carries the app's package and `SHA256SUMS.txt`. The launcher asks GitHub for the latest release,
+  at most once an hour unless you press *Check for updates*.
+- **3ds Max apps.** The package is `<id>-<version>-windows-x64-3dsmax.zip`, with the `.bundle` folder at the
+  zip's root; the bundle's `PackageContents.xml` must say the release's version.
+- **Standalone apps.** An app the catalog marks `package = "standalone"` is a program of its own: the
+  package is `<id>-<version>-windows-x64.zip` with `<App>.exe` at the zip's root, and the exe's file
+  properties must say the release's version. The launcher unpacks it into
+  `%LOCALAPPDATA%\Programs\Open3D\<App>`, adds Start menu and desktop shortcuts on a first install and
+  removes them with the app. OpenView is the first one.
 - **Launcher updates.** The launcher's own releases, in this repository, carry the MSI, the portable zip
   and `SHA256SUMS.txt`; an installed launcher downloads the same format it was installed from.
 
@@ -90,8 +95,9 @@ The MSI and the portable zip are made by `packaging\windows\package.ps1`, which 
 `tools\publish.py`, run with the Python that ships with 3ds Max (`python -I tools\publish.py ...`), needs
 the GitHub CLI:
 
-- `app <id>`: builds `<id>-<version>-windows-x64-3dsmax.zip` from the app's latest `vX.Y.Z` tag and attaches
-  it, with `SHA256SUMS.txt`, to that app's GitHub release (`tools\apps.json` lists the apps).
+- `app <id>`: builds `<id>-<version>-windows-x64-3dsmax.zip` from a 3ds Max app's latest `vX.Y.Z` tag and
+  attaches it, with `SHA256SUMS.txt`, to that app's GitHub release (`tools\apps.json` lists those apps). A
+  standalone app builds and publishes its own zip from its repository.
 - `catalog`: signs `crates\core\catalog.toml` as `launcher-catalog.toml` + `.sig` with the maintainer's
   private key (never in this repository) and publishes the app icons. Only needed when the list of apps
   changes.

@@ -2,7 +2,7 @@
 
 What each version of the Open3D Launcher adds, newest first.
 
-## In development
+## 0.3.0 — 12 November 2026
 
 - **OpenView is in the launcher.** Install, update and open OpenView (360 panoramas and photos from map
   applications at full resolution, with a viewer, crops and HDRIs) from the launcher. It is the first app

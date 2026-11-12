@@ -6,7 +6,7 @@ members = ["crates/*", "apps/*", "xtask"]
 # craft-update (github.com/storytold/craft-libs at 1b34eba, crates/update), both MIT OR Apache-2.0,
 # Copyright (c) 2026 ArtCraft Team and contributors; see NOTICE and LICENSES/.
 [workspace.package]
-version = "0.2.1"
+version = "0.3.0"
 edition = "2024"
 license = "GPL-3.0-or-later"
 rust-version = "1.95"
