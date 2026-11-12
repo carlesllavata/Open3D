@@ -324,4 +324,17 @@ openmanager	Pulze setups	Configuraciones de Pulze
 openmanager	Setups made with Pulze Scene Manager are read and converted.	Las configuraciones creadas con Pulze Scene Manager se leen y se convierten.
 openmanager	Corona and V-Ray	Corona y V-Ray
 openmanager	Render settings, overrides and the Corona post-production travel with each setup.	Los ajustes de render, las sobrescrituras y la posproducción de Corona viajan con cada configuración.
+openview	360 panoramas and photos at full resolution	Panoramas 360 y fotos a resolución completa
+openview	The street outside, as a 16K panorama.	La calle, convertida en un panorama 16K.
+openview	OpenView downloads 360 panoramas and photos from map applications at full resolution, up to 16384 × 8192 px, and saves them as standard equirectangular images. Look around them in a 360 viewer, cut ordinary photos out of them and turn them into HDRIs.	OpenView descarga panoramas 360 y fotos de aplicaciones de mapas a resolución completa, hasta 16384 × 8192 px, y los guarda como imágenes equirrectangulares estándar. Recórrelos en un visor 360, recorta fotos normales de ellos y conviértelos en HDRI.
+openview	It is a program of its own: it does not need 3ds Max.	Es un programa independiente: no necesita 3ds Max.
+openview	Windows 10 or 11 (64-bit)	Windows 10 u 11 (64 bits)
+openview	Full resolution	Resolución completa
+openview	Panoramas of up to 16384 × 8192 px, and 360 photos and ordinary photos at the size they were uploaded.	Panoramas de hasta 16384 × 8192 px, y fotos 360 y fotos normales al tamaño con el que se subieron.
+openview	Level horizon	Nivelar el horizonte
+openview	Straightens panoramas taken with a leaning camera, so the verticals of buildings stay vertical.	Endereza los panoramas tomados con la cámara inclinada, para que las verticales de los edificios sigan siendo verticales.
+openview	Crops	Recortes
+openview	Frame a view in the 360 viewer and save it as an ordinary photo.	Encuadra una vista en el visor 360 y guárdala como una foto normal.
+openview	HDRI	HDRI
+openview	Turn a panorama into an EXR or .hdr with a sun, to light a scene.	Convierte un panorama en un EXR o .hdr con sol, para iluminar una escena.
 	Open in 3ds Max	Abrir en 3ds Max

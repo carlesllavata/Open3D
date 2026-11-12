@@ -75,3 +75,41 @@ text = "Setups made with Pulze Scene Manager are read and converted."
 [[apps.details.features]]
 title = "Corona and V-Ray"
 text = "Render settings, overrides and the Corona post-production travel with each setup."
+
+[[apps]]
+color = [58, 188, 169]
+former_bundles = []
+former_ids = []
+former_names = []
+id = "openview"
+binary = "openview"
+package = "standalone"
+site = "https://github.com/carlesllavata/OpenView"
+windows_msi_publisher = "Open3D"
+desktop_categories = ["Graphics", "Photography"]
+startup_wm_class = "openview"
+icon_url = "https://raw.githubusercontent.com/carlesllavata/Open3D/main/launcher-app-icons/openview-265d3f8397377af73b7a648cee7c769bb2a7208bbf06cc28136e4d5157e17320.png"
+icon_sha256 = "265d3f8397377af73b7a648cee7c769bb2a7208bbf06cc28136e4d5157e17320"
+ink_dark = [94, 214, 196]
+ink_light = [14, 128, 114]
+kind = "official"
+name = "OpenView"
+publisher = "Open3D"
+repo = "carlesllavata/OpenView"
+tagline = "360 panoramas and photos at full resolution"
+[apps.details]
+headline = "The street outside, as a 16K panorama."
+about = "OpenView downloads 360 panoramas and photos from map applications at full resolution, up to 16384 × 8192 px, and saves them as standard equirectangular images. Look around them in a 360 viewer, cut ordinary photos out of them and turn them into HDRIs.\n\nIt is a program of its own: it does not need 3ds Max."
+platforms = "Windows 10 or 11 (64-bit)"
+[[apps.details.features]]
+title = "Full resolution"
+text = "Panoramas of up to 16384 × 8192 px, and 360 photos and ordinary photos at the size they were uploaded."
+[[apps.details.features]]
+title = "Level horizon"
+text = "Straightens panoramas taken with a leaning camera, so the verticals of buildings stay vertical."
+[[apps.details.features]]
+title = "Crops"
+text = "Frame a view in the 360 viewer and save it as an ordinary photo."
+[[apps.details.features]]
+title = "HDRI"
+text = "Turn a panorama into an EXR or .hdr with a sun, to light a scene."

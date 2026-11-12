@@ -475,7 +475,10 @@ mod tests {
         let snapshot = verified.into_snapshot(HashMap::new());
         let app = snapshot.apps.iter().find(|a| a.id == "exampletool").unwrap();
         assert_eq!(app.package, AppPackage::Standalone);
-        assert!(snapshot.apps.iter().filter(|a| a.id != "exampletool").all(|a| a.package == AppPackage::MaxBundle));
+        // The built-in apps the hosted list leaves out stay what they are.
+        for built_in in &SUITE {
+            assert_eq!(snapshot.apps.iter().find(|a| a.id == built_in.id).map(|a| a.package), Some(built_in.package), "{}", built_in.id);
+        }
 
         // A kind of app this launcher doesn't know is left out, not installed as something else.
         r = future_app();

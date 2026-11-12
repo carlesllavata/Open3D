@@ -47,6 +47,10 @@ if you want them gone.
 - **OpenManager**: scene setups and batch rendering for 3ds Max (Corona and V-Ray; reads Pulze Scene Manager
   setups). [carlesllavata/OpenManager](https://github.com/carlesllavata/OpenManager)
 
+- **OpenView** (in development, after 0.2.1): downloads 360 panoramas and photos from map applications at
+  full resolution, with a 360 viewer, crops and HDRIs. A program of its own: it doesn't need 3ds Max.
+  [carlesllavata/OpenView](https://github.com/carlesllavata/OpenView)
+
 More apps are added to the catalog as they are published.
 
 ## How it works
@@ -63,7 +67,7 @@ More apps are added to the catalog as they are published.
   program of its own: its release carries `<id>-<version>-windows-x64.zip` with `<App>.exe` at the zip's
   root, and the exe's file properties must say the release's version. The launcher unpacks it into
   `%LOCALAPPDATA%\Programs\Open3D\<App>`, adds Start menu and desktop shortcuts on a first install, starts
-  it with **Open**, and never replaces or removes it while it is running. No such app is in the catalog yet.
+  it with **Open**, and never replaces or removes it while it is running. OpenView is the first one.
 - **Launcher updates.** The launcher's own releases, in this repository, carry the MSI, the portable zip
   and `SHA256SUMS.txt`; an installed launcher downloads the same format it was installed from.
 

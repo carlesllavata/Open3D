@@ -4,13 +4,15 @@ What each version of the Open3D Launcher adds, newest first.
 
 ## In development
 
+- **OpenView is in the launcher.** Install, update and open OpenView (360 panoramas and photos from map
+  applications at full resolution, with a viewer, crops and HDRIs) from the launcher. It is the first app
+  that is a program of its own: it doesn't need 3ds Max.
 - **Standalone apps.** The launcher can now install, update, open and remove an app that is a program of
   its own rather than a 3ds Max plug-in. It goes in `Programs\Open3D\<App>` in your user folder, without
   administrator rights, with shortcuts in the Start menu and on the desktop, and **Open** starts it.
   Downloads are checked and updates put in place as for plug-ins: the version you have stays until the new
   one is ready, and comes back if the update fails. Close the app before updating or removing it; the
-  launcher tells you when it is still open. Removing it keeps its settings. No app of this kind is in the
-  catalog yet.
+  launcher tells you when it is still open. Removing it keeps its settings.
 
 ## 0.2.1 — 11 November 2026
 
