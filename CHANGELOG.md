@@ -2,7 +2,7 @@
 
 What each version of the Open3D Launcher adds, newest first.
 
-## In development
+## 0.3.1 — 12 November 2026
 
 - **OpenElements is in the launcher.** Install and update OpenElements (render only the render elements you
   choose) from the launcher, like the other 3ds Max apps.

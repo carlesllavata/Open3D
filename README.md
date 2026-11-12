@@ -41,7 +41,7 @@ choose **More info > Run anyway**. Updates are checked against the checksums pub
 Removing the launcher leaves the apps you installed with it where they are: remove them from the launcher
 first if you want them gone. Removing an app keeps its settings.
 
-> Status: early (v0.3.0). What each version adds: [CHANGELOG.md](CHANGELOG.md).
+> Status: early (v0.3.1). What each version adds: [CHANGELOG.md](CHANGELOG.md).
 
 ### Apps
 
@@ -50,6 +50,9 @@ first if you want them gone. Removing an app keeps its settings.
 
 - **OpenManager**: scene setups and batch rendering for 3ds Max (Corona and V-Ray; reads Pulze Scene Manager
   setups). [carlesllavata/OpenManager](https://github.com/carlesllavata/OpenManager)
+
+- **OpenElements**: renders only the render elements you tick in 3ds Max; masks and geometry elements render
+  in seconds (Corona; V-Ray not tested yet). [carlesllavata/OpenElements](https://github.com/carlesllavata/OpenElements)
 
 - **OpenView**: downloads 360 panoramas and photos from map applications at full resolution, with a 360
   viewer, crops and HDRIs. A program of its own: it doesn't need 3ds Max.
