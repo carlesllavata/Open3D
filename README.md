@@ -41,12 +41,12 @@ choose **More info > Run anyway**. Updates are checked against the checksums pub
 Removing the launcher leaves the apps you installed with it where they are: remove them from the launcher
 first if you want them gone. Removing an app keeps its settings.
 
-> Status: early (v0.3.1). What each version adds: [CHANGELOG.md](CHANGELOG.md).
+> Status: early (v0.3.2). What each version adds: [CHANGELOG.md](CHANGELOG.md).
 
 ### Apps
 
-- **OpenTools**: a tool hub for 3ds Max (scene checks and repairs, asset / proxy / XRef managers, modeling,
-  material and clipboard tools). [carlesllavata/OpenTools](https://github.com/carlesllavata/OpenTools)
+- **OpenTools**: a tool hub for 3ds Max (scene checks and repairs, asset / proxy / XRef managers, rendering
+  only the render elements you choose, modeling, material and clipboard tools). [carlesllavata/OpenTools](https://github.com/carlesllavata/OpenTools)
 
 - **OpenManager**: scene setups and batch rendering for 3ds Max (Corona and V-Ray; reads Pulze Scene Manager
   setups). [carlesllavata/OpenManager](https://github.com/carlesllavata/OpenManager)
