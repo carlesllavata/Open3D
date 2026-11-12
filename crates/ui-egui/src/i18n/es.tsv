@@ -337,4 +337,17 @@ openview	Crops	Recortes
 openview	Frame a view in the 360 viewer and save it as an ordinary photo.	Encuadra una vista en el visor 360 y guárdala como una foto normal.
 openview	HDRI	HDRI
 openview	Turn a panorama into an EXR or .hdr with a sun, to light a scene.	Convierte un panorama en un EXR o .hdr con sol, para iluminar una escena.
+openelements	Render only the render elements you choose	Renderiza solo los elementos de render que elijas
+openelements	The missing pass, without the full render.	El pase que faltaba, sin el render completo.
+openelements	OpenElements renders only the render elements you tick in 3ds Max. Masks and geometry elements such as Cryptomatte, IDs, Z-depth or normals render in seconds, because no lighting is computed; a mask of the selected objects can be added for that render only.	OpenElements renderiza solo los elementos de render que marques en 3ds Max. Las máscaras y los elementos de geometría como Cryptomatte, IDs, Z-depth o normales se renderizan en segundos, porque no se calcula la iluminación; se puede añadir una máscara de los objetos seleccionados solo para ese render.
+openelements	The files go next to the scene's render output, the main image is never written, and the scene is left as it was.	Los archivos se guardan junto a la salida de render de la escena, la imagen principal nunca se escribe y la escena queda como estaba.
+openelements	Windows, 3ds Max 2025 and later, Corona (V-Ray not tested yet)	Windows, 3ds Max 2025 o posterior, Corona (V-Ray aún sin probar)
+openelements	Fast passes	Pases rápidos
+openelements	Masks and geometry elements render with shading off, in seconds.	Las máscaras y los elementos de geometría se renderizan sin sombreado, en segundos.
+openelements	Mask of the selection	Máscara de la selección
+openelements	A white-on-black mask of the selected objects, made for that render only.	Una máscara blanca sobre negro de los objetos seleccionados, solo para ese render.
+openelements	Beauty stays safe	La imagen principal, a salvo
+openelements	Only the ticked elements are saved; the main image is never written.	Solo se guardan los elementos marcados; la imagen principal nunca se escribe.
+openelements	Scene left as it was	La escena queda como estaba
+openelements	Every setting a render changes is put back, also when it fails.	Cada ajuste que cambia un render se restaura, también si falla.
 	Open in 3ds Max	Abrir en 3ds Max

@@ -201,6 +201,7 @@ pub fn app_icon_png(id: &str) -> Option<&'static [u8]> {
         "opentools" => include_bytes!("../../../assets/app-icons/opentools.png"),
         "openmanager" => include_bytes!("../../../assets/app-icons/openmanager.png"),
         "openview" => include_bytes!("../../../assets/app-icons/openview.png"),
+        "openelements" => include_bytes!("../../../assets/app-icons/openelements.png"),
         _ => return None,
     })
 }

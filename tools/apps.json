@@ -13,7 +13,20 @@
     "checkout": "../apps/OpenManager",
     "bundle": "OpenManager.bundle",
     "bundle_path": "dist/OpenManager.bundle",
-    "build": ["tools/build.py"],
+    "build": [
+      "tools/build.py"
+    ],
+    "changelog": "CHANGELOG.md"
+  },
+  "openelements": {
+    "name": "OpenElements",
+    "repo": "carlesllavata/OpenElements",
+    "checkout": "../apps/OpenElements",
+    "bundle": "OpenElements.bundle",
+    "bundle_path": "dist/OpenElements.bundle",
+    "build": [
+      "tools/build.py"
+    ],
     "changelog": "CHANGELOG.md"
   }
 }
