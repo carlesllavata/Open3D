@@ -20,22 +20,12 @@
 //! token. Anything else on the port, including a listener that answers like a launcher but fails
 //! or skips the proof, is treated as unrelated, and the newcomer starts anyway.
 //!
-//! ## Upgrading over the published 0.7.0 build
+//! ## Ports
 //!
-//! Replacement of a running 0.7.0 instance remains an unqualified compatibility gap. The
-//! published 0.7.0 `answer` expects `hello <version> <token>` and grants `Replace` only when the
-//! second word equals its owner-only token file. A newer build sends `hello <version> <nonce>`
-//! instead, so 0.7.0 reads the nonce as a wrong token, replies `running 0.7.0`, and merely shows
-//! its window. If that reply arrives in time, a newer newcomer requests takeover but the old
-//! process does not release its port; since that reply carries no proof, the newcomer then starts
-//! anyway without the listening socket. The old reader and new client have similar timeouts, so a
-//! delayed reply can instead reach the legacy fallback, with the same result. These timing paths need an
-//! old-release interoperability test. Quit the running 0.7.0 launcher from its tray menu before
-//! starting the new version. Do not make the new side
-//! send the token to force a `Replace`: that would restore the clear-text shared-secret handshake
-//! this protocol removed (0.7.0 itself already puts the token on the wire when it starts). A
-//! future compatibility shim would need an out-of-band, authenticated way to stop the old process;
-//! it must not accept an unauthenticated lifecycle request.
+//! The launcher listens on its own port. Launchers up to 0.3.0 used another one that a different
+//! program listens on as well, so the two kept each other from being the only instance. A start
+//! that owns the new port also greets whatever holds the old one, and only a launcher there that
+//! proves it holds this account's token and is older is asked to quit.
 
 use std::io::{ErrorKind, Read, Write};
 use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
@@ -44,7 +34,10 @@ use std::time::{Duration, Instant};
 
 use open3d_launcher_core::version::{self, Version};
 
-const PORT: u16 = 47_413;
+const PORT: u16 = 46_373;
+/// The port launchers up to 0.3.0 listened on. Another program uses it too, so the launcher left
+/// it; a newer start only asks a proven older launcher there to quit (see [`replace_older`]).
+const OLD_PORT: u16 = 47_413;
 /// What launchers before the version handshake send (and still the answer to an unknown peer).
 const SHOW: &[u8] = b"open3d-launcher:show";
 /// `hello <version> <nonce>`: a second start introduces itself with its version and client nonce.
@@ -152,6 +145,7 @@ pub fn claim(wake: Wake) -> Instance {
     let ours = ours();
     let token = token();
     if let Ok(listener) = TcpListener::bind(addr) {
+        replace_older(ours.as_ref(), token.as_deref());
         return Instance::Primary(listen(listener, ours, token, wake));
     }
     match ask(addr, ours.as_ref(), token.as_deref()) {
@@ -184,6 +178,26 @@ pub fn claim(wake: Wake) -> Instance {
         // The port is taken by something else: run anyway rather than refuse to start.
         Err(_) => Instance::Primary(channel().1),
     }
+}
+
+/// Asks a launcher from before the port change (0.3.0 or older), still running on [`OLD_PORT`],
+/// to quit so this newer one is the only launcher. Only a peer that proves it holds this account's
+/// token is asked; anything else on that port is left alone.
+fn replace_older(ours: Option<&Version>, token: Option<&str>) {
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, OLD_PORT));
+    // A quick bind first: on Windows a connect to a free loopback port takes about a second.
+    if TcpListener::bind(addr).is_err() && replace_older_at(addr, ours, token) {
+        log::info!("asked an older Open3D Launcher to quit");
+    }
+}
+
+/// Greets whatever holds `addr` and whether it was a proven older launcher that now quits.
+/// Every launcher that used the old port speaks the challenge-response handshake, so a single
+/// greeting with a nonce is enough; `ask_once` answers the challenge only after the peer proved
+/// itself, so nothing else on that port learns anything.
+fn replace_older_at(addr: SocketAddr, ours: Option<&Version>, token: Option<&str>) -> bool {
+    let (Some(ours), Some(token)) = (ours, token) else { return false };
+    matches!(ask_once(addr, ours, Some(token), true), Ok(Answer::TakeOver { proven: true }))
 }
 
 /// Whether whatever holds the port now proves it is this account's launcher.
@@ -439,6 +453,29 @@ mod tests {
         let (addr, rx) = primary("0.1.0");
         assert_eq!(ask(addr, Some(&v("0.1.2")), Some(TOK)).ok(), Some(Answer::TakeOver { proven: true }));
         assert_eq!(next(&rx), Request::Replace);
+    }
+
+    /// A launcher still on the old port is asked to quit only when it proves itself and is older;
+    /// a stranger there is left alone.
+    #[test]
+    fn an_older_launcher_on_the_old_port_is_asked_to_quit() {
+        let (addr, rx) = primary("0.3.0");
+        assert!(replace_older_at(addr, Some(&v("0.3.1")), Some(TOK)));
+        assert_eq!(next(&rx), Request::Replace);
+
+        let (addr, rx) = primary("0.3.0");
+        assert!(!replace_older_at(addr, Some(&v("0.3.1")), Some("another-accounts-token")));
+        assert_eq!(next(&rx), Request::Show);
+
+        let stranger = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+        let addr = stranger.local_addr().unwrap();
+        std::thread::spawn(move || {
+            // Hangs up on anything, like another program that doesn't speak the handshake.
+            for s in stranger.incoming().flatten() {
+                drop(s);
+            }
+        });
+        assert!(!replace_older_at(addr, Some(&v("0.3.1")), Some(TOK)));
     }
 
     #[test]

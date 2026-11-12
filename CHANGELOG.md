@@ -6,6 +6,9 @@ What each version of the Open3D Launcher adds, newest first.
 
 - **OpenElements is in the launcher.** Install and update OpenElements (render only the render elements you
   choose) from the launcher, like the other 3ds Max apps.
+- **Only one launcher at a time, again.** Another program on your computer could use the same local port as the
+  launcher, and then a second launcher could open next to the first. The launcher now has a port of its own, and
+  asks a launcher up to 0.3.0 that is still running to make way.
 
 ## 0.3.0 — 12 November 2026
 
@@ -18,11 +21,6 @@ What each version of the Open3D Launcher adds, newest first.
   Downloads are checked and updates put in place as for plug-ins: the version you have stays until the new
   one is ready, and comes back if the update fails. Close the app before updating or removing it; the
   launcher tells you when it is still open. Removing it keeps its settings.
-
-## In development
-
-- **OpenElements is in the launcher.** Install and update OpenElements (render only the render elements you
-  choose) from the launcher, like the other 3ds Max apps.
 
 ## 0.2.1 — 11 November 2026
 
@@ -38,11 +36,6 @@ What each version of the Open3D Launcher adds, newest first.
 - **A smaller, simpler launcher.** Code it inherited for other systems (macOS, Linux) and for
   install formats Open3D doesn't use is gone, along with the install-format and install-folder
   settings, which never applied to 3ds Max plug-ins.
-
-## In development
-
-- **OpenElements is in the launcher.** Install and update OpenElements (render only the render elements you
-  choose) from the launcher, like the other 3ds Max apps.
 
 ## 0.2.0 — 11 November 2026
 
@@ -72,32 +65,17 @@ new launcher finds them.
 - Free software under the GNU GPL v3 or later. ArtCraft Launcher's MIT / Apache-2.0 notices are kept in
   `NOTICE` and `LICENSES/`.
 
-## In development
-
-- **OpenElements is in the launcher.** Install and update OpenElements (render only the render elements you
-  choose) from the launcher, like the other 3ds Max apps.
-
 ## 0.1.2 — 11 November 2026
 
 - **New app versions now really show up within a minute.** The launcher reads the catalog through GitHub's API,
   whose cache lasts at most a minute; if that fails, it reads it the old way. The fix in 0.1.1 didn't work:
   GitHub's 5-minute cache for the catalog file ignores the trick 0.1.1 used.
 
-## In development
-
-- **OpenElements is in the launcher.** Install and update OpenElements (render only the render elements you
-  choose) from the launcher, like the other 3ds Max apps.
-
 ## 0.1.1 — 11 November 2026
 
 - **New app versions show up right away.** The launcher now always reads the current catalog: before, a
   version published a moment ago could take up to five minutes to appear, because GitHub keeps the catalog
   in a short-lived cache.
-
-## In development
-
-- **OpenElements is in the launcher.** Install and update OpenElements (render only the render elements you
-  choose) from the launcher, like the other 3ds Max apps.
 
 ## 0.1.0 — 11 November 2026
 
