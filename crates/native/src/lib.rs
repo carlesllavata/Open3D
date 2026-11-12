@@ -29,6 +29,7 @@ mod screenshots;
 pub mod self_update;
 pub mod single_instance;
 mod source;
+mod standalone;
 
 pub use backend::NativeBackend;
 

@@ -59,6 +59,11 @@ More apps are added to the catalog as they are published.
   `vX.Y.Z` carries `<id>-<version>-windows-x64-3dsmax.zip` (the `.bundle` folder at the zip's root) and
   `SHA256SUMS.txt`. The launcher asks GitHub for the latest release, at most once an hour unless you press
   *Check for updates*.
+- **Standalone apps** (in development, after 0.2.1). An app the catalog marks `package = "standalone"` is a
+  program of its own: its release carries `<id>-<version>-windows-x64.zip` with `<App>.exe` at the zip's
+  root, and the exe's file properties must say the release's version. The launcher unpacks it into
+  `%LOCALAPPDATA%\Programs\Open3D\<App>`, adds Start menu and desktop shortcuts on a first install, starts
+  it with **Open**, and never replaces or removes it while it is running. No such app is in the catalog yet.
 - **Launcher updates.** The launcher's own releases, in this repository, carry the MSI, the portable zip
   and `SHA256SUMS.txt`; an installed launcher downloads the same format it was installed from.
 
@@ -97,7 +102,7 @@ Each takes `--dry-run` to build without uploading anything.
 |---|---|
 | `apps/open3d-launcher/` | the desktop program: window, tray, single instance, logging |
 | `crates/core/` | catalog, releases, versions, platforms and package formats (no I/O) |
-| `crates/native/` | downloads, install / update / remove, 3ds Max bundles (`max_bundle.rs`), self-update |
+| `crates/native/` | downloads, install / update / remove, 3ds Max bundles (`max_bundle.rs`), standalone apps (`standalone.rs`), self-update |
 | `crates/ui-egui/` | the interface (egui) and its translations (`src/i18n/*.tsv`) |
 | `crates/update/` | the self-update library (a modified copy of craft-update) |
 | `packaging/windows/` | the MSI (WiX), the portable zip and their checks |

@@ -275,7 +275,7 @@ impl LauncherUi {
         }
         let Some(platform) = self.platform else { return false };
         let stems: Vec<&str> = app.stems().collect();
-        pick_asset(r, &stems, platform, platform.download_kinds()).is_some_and(|(asset, _)| checked(asset))
+        pick_asset(r, &stems, platform, app.kinds()).is_some_and(|(asset, _)| checked(asset))
     }
 
     /// The newer release an installed copy is behind without it being an update, for a quiet note

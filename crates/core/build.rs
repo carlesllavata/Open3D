@@ -27,6 +27,8 @@ struct App {
     site: Option<String>,
     mac_team: Option<String>,
     mac_bundle_name: Option<String>,
+    /// `"standalone"` for a program of its own; a 3ds Max plug-in when missing.
+    package: Option<String>,
     details: Option<Details>,
 }
 #[derive(Deserialize)]
@@ -67,9 +69,14 @@ fn main() -> Result<(), Box<dyn Error>> {
             "community" => "Community",
             _ => return Err(format!("unknown app kind for {}", app.id).into()),
         };
+        let package = match app.package.as_deref() {
+            None | Some("3dsmax") => "MaxBundle",
+            Some("standalone") => "Standalone",
+            Some(_) => return Err(format!("unknown package for {}", app.id).into()),
+        };
         writeln!(
             apps,
-            "SuiteApp {{ id: {:?}, name: {:?}, tagline: {:?}, color: {:?}, ink_light: {:?}, ink_dark: {:?}, repo: {:?}, former_ids: {}, former_names: {}, kind: AppKind::{kind}, publisher: {:?}, msi_publisher: {}, bundle: {}, former_bundles: {}, site: {}, mac_team: {}, mac_bundle_name: {} }},",
+            "SuiteApp {{ id: {:?}, name: {:?}, tagline: {:?}, color: {:?}, ink_light: {:?}, ink_dark: {:?}, repo: {:?}, former_ids: {}, former_names: {}, kind: AppKind::{kind}, publisher: {:?}, msi_publisher: {}, bundle: {}, former_bundles: {}, site: {}, mac_team: {}, mac_bundle_name: {}, package: AppPackage::{package} }},",
             app.id,
             app.name,
             app.tagline,

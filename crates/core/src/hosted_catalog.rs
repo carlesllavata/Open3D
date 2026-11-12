@@ -13,7 +13,7 @@ use ed25519_dalek::{Signature, VerifyingKey, pkcs8::DecodePublicKey};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
-use crate::catalog::{AppKind, SUITE, SuiteApp};
+use crate::catalog::{AppKind, AppPackage, SUITE, SuiteApp};
 use crate::details::{AppDetails, Feature, Shot};
 
 /// The one origin catalog resources (the catalog, its signature, the app icons) may come from:
@@ -72,6 +72,9 @@ struct Record {
     site: Option<String>,
     mac_team: Option<String>,
     mac_bundle_name: Option<String>,
+    /// `"standalone"` for a program of its own; a 3ds Max plug-in when missing.
+    #[serde(default)]
+    package: Option<String>,
     icon_url: String,
     icon_sha256: String,
     desktop_categories: Vec<String>,
@@ -223,6 +226,8 @@ impl VerifiedCatalog {
                 bundle: record.bundle.map(intern),
                 site: record.site.map(intern),
                 mac_team: record.mac_team.map(intern),
+                // Checked by `valid_record`; an unknown word never gets this far.
+                package: AppPackage::from_catalog(record.package.as_deref()).unwrap_or(AppPackage::MaxBundle),
             });
         }
         for app in &SUITE {
@@ -273,6 +278,12 @@ fn valid_record(r: &Record) -> bool {
     {
         return false;
     }
+    // A launcher that doesn't know a kind of app can't install it: the entry is left out.
+    let Some(package) = AppPackage::from_catalog(r.package.as_deref()) else { return false };
+    // A standalone app's name is its folder and its exe: nothing Windows wouldn't take as a file name.
+    if package == AppPackage::Standalone && !windows_file_name(&r.name) {
+        return false;
+    }
     let bundle = r.bundle.clone().unwrap_or_else(|| format!("io.github.carlesllavata.{}", r.id));
     if !bundle.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_')) || bundle.is_empty() {
         return false;
@@ -291,6 +302,7 @@ fn valid_record(r: &Record) -> bool {
             || r.mac_team.as_deref() != pinned.mac_team
             || r.mac_bundle_name.as_deref().unwrap_or(&r.name) != pinned.mac_bundle_name()
             || r.name != pinned.name
+            || package != pinned.package
         {
             return false;
         }
@@ -331,6 +343,20 @@ fn valid_record(r: &Record) -> bool {
                     && s.url == format!("{}/{}/{}/{}.jpg", crate::details::SCREENSHOTS_BASE, crate::details::SCREENSHOTS_REV, r.id, s.key)
             })
     })
+}
+
+/// A name Windows takes as a file or folder name as it is.
+pub fn windows_file_name(name: &str) -> bool {
+    const RESERVED: [&str; 22] = [
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5",
+        "LPT6", "LPT7", "LPT8", "LPT9",
+    ];
+    !name.is_empty()
+        && name.len() <= 64
+        && !name.chars().any(|c| c.is_control() || matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*'))
+        && !name.starts_with(' ')
+        && !name.ends_with([' ', '.'])
+        && !RESERVED.iter().any(|r| name.split('.').next().is_some_and(|stem| stem.trim_end().eq_ignore_ascii_case(r)))
 }
 
 fn identifier(value: &str) -> bool {
@@ -430,6 +456,39 @@ mod tests {
         r.kind = "community".into();
         r.repo = "unapproved/exampletool".into();
         assert!(!valid_record(&r));
+        // A plug-in the launcher was built with can't be turned into a program, or back.
+        r = first_record();
+        r.package = Some("standalone".into());
+        assert!(!valid_record(&r));
+        r = first_record();
+        r.package = Some("3dsmax".into());
+        assert!(valid_record(&r));
+    }
+
+    #[test]
+    fn a_new_app_may_be_a_standalone_program_with_a_plain_name() {
+        let mut r = future_app();
+        assert!(valid_record(&r));
+        r.package = Some("standalone".into());
+        assert!(valid_record(&r));
+        let verified = VerifiedCatalog { records: vec![r], rejected_entries: 0 };
+        let snapshot = verified.into_snapshot(HashMap::new());
+        let app = snapshot.apps.iter().find(|a| a.id == "exampletool").unwrap();
+        assert_eq!(app.package, AppPackage::Standalone);
+        assert!(snapshot.apps.iter().filter(|a| a.id != "exampletool").all(|a| a.package == AppPackage::MaxBundle));
+
+        // A kind of app this launcher doesn't know is left out, not installed as something else.
+        r = future_app();
+        r.package = Some("installer".into());
+        assert!(!valid_record(&r));
+        // Its name becomes a folder and an exe.
+        for name in ["Example:Tool", "Example.", "CON", "nul.txt", "Example?", " Example"] {
+            r = future_app();
+            r.package = Some("standalone".into());
+            r.name = name.into();
+            r.mac_bundle_name = Some(name.into());
+            assert!(!valid_record(&r), "{name}");
+        }
     }
 
     fn future_app() -> Record {

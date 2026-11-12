@@ -14,6 +14,34 @@ pub enum AppKind {
     Community,
 }
 
+/// What an app is on disk, which decides its package, where it is installed and how it is opened.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum AppPackage {
+    /// A 3ds Max plug-in bundle in `ApplicationPlugins`; opening it starts 3ds Max.
+    MaxBundle,
+    /// A program of its own (`<App>.exe`) in its folder under `Programs\Open3D`.
+    Standalone,
+}
+
+impl AppPackage {
+    /// The catalog's word for it (`package = "standalone"`); a missing field means a plug-in.
+    pub fn from_catalog(word: Option<&str>) -> Option<Self> {
+        match word {
+            None | Some("3dsmax") => Some(Self::MaxBundle),
+            Some("standalone") => Some(Self::Standalone),
+            Some(_) => None,
+        }
+    }
+
+    /// The package formats an app of this kind is installed from, best first.
+    pub fn kinds(self) -> &'static [crate::PackageKind] {
+        match self {
+            Self::MaxBundle => &[crate::PackageKind::MaxBundle],
+            Self::Standalone => &[crate::PackageKind::AppZip],
+        }
+    }
+}
+
 /// One app in the suite.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SuiteApp {
@@ -52,9 +80,21 @@ pub struct SuiteApp {
     /// while those builds carry no signature the launcher can check: it then opens a copy that's
     /// there and links to the releases, but installs nothing.
     pub mac_team: Option<&'static str>,
+    /// A 3ds Max plug-in or a program of its own.
+    pub package: AppPackage,
 }
 
 impl SuiteApp {
+    /// The package formats this app is installed from, best first.
+    pub fn kinds(&self) -> &'static [crate::PackageKind] {
+        self.package.kinds()
+    }
+
+    /// Whether the app is a program of its own rather than a 3ds Max plug-in.
+    pub fn is_standalone(&self) -> bool {
+        self.package == AppPackage::Standalone
+    }
+
     /// `io.github.carlesllavata.<id>`: macOS bundle id, Flatpak id and Linux desktop-file id.
     pub fn bundle_id(&self) -> String {
         self.bundle.map_or_else(|| format!("io.github.carlesllavata.{}", self.id), str::to_string)
@@ -118,6 +158,7 @@ const fn app(
         former_bundles: &[],
         site: None,
         mac_team: None,
+        package: AppPackage::MaxBundle,
     }
 }
 
@@ -174,5 +215,15 @@ mod tests {
             assert!(png.starts_with(b"\x89PNG\r\n\x1a\n"), "{} icon isn't a PNG", app.id);
         }
         assert!(app_icon_png("notatool").is_none());
+    }
+
+    #[test]
+    fn the_catalog_names_two_kinds_of_app() {
+        assert_eq!(AppPackage::from_catalog(None), Some(AppPackage::MaxBundle));
+        assert_eq!(AppPackage::from_catalog(Some("3dsmax")), Some(AppPackage::MaxBundle));
+        assert_eq!(AppPackage::from_catalog(Some("standalone")), Some(AppPackage::Standalone));
+        assert_eq!(AppPackage::from_catalog(Some("installer")), None);
+        assert_eq!(AppPackage::Standalone.kinds(), [crate::PackageKind::AppZip]);
+        assert_eq!(AppPackage::MaxBundle.kinds(), [crate::PackageKind::MaxBundle]);
     }
 }

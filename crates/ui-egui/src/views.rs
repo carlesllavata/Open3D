@@ -970,11 +970,7 @@ impl LauncherUi {
         let Some(platform) = self.platform else { return Vec::new() };
         let Some(release) = entry.release() else { return Vec::new() };
         let stems: Vec<_> = entry.app.stems().collect();
-        platform
-            .download_kinds()
-            .iter()
-            .filter_map(|kind| pick_asset(release, &stems, platform, &[*kind]).map(|(asset, kind)| (kind, asset.size)))
-            .collect()
+        entry.app.kinds().iter().filter_map(|kind| pick_asset(release, &stems, platform, &[*kind]).map(|(asset, kind)| (kind, asset.size))).collect()
     }
 
     fn sizes_text(sizes: &[(PackageKind, u64)]) -> String {
@@ -996,7 +992,7 @@ impl LauncherUi {
             let platform = self.platform;
             let url = entry.release().zip(platform).and_then(|(r, p)| {
                 let stems: Vec<&str> = entry.app.stems().collect();
-                pick_asset(r, &stems, p, p.download_kinds()).map(|(a, _)| a.url.clone())
+                pick_asset(r, &stems, p, entry.app.kinds()).map(|(a, _)| a.url.clone())
             });
             return match (status, url) {
                 (AppStatus::NoRelease, _) => Primary::Unavailable(tl!("Coming soon")),
@@ -1388,8 +1384,10 @@ impl LauncherUi {
     /// reinstall (where an install would go ahead), and uninstall (which asks first).
     fn menu_installed(&mut self, ui: &mut Ui, entry: &AppEntry, status: &AppStatus, reveal: &'static str) {
         let id = entry.app.id;
-        // Open3D apps are 3ds Max plug-ins: opening one starts 3ds Max, which takes no launch options.
-        if ui.button(tl!("Open in 3ds Max")).clicked() {
+        // Opening a 3ds Max plug-in starts 3ds Max, which takes no launch options; a standalone
+        // app is started itself.
+        let open = if entry.app.is_standalone() { tl!("Open") } else { tl!("Open in 3ds Max") };
+        if ui.button(open).clicked() {
             self.launch_app(id);
             ui.close();
         }
@@ -1414,8 +1412,9 @@ impl LauncherUi {
         let Some(r) = entry.release() else { return };
         let Some(p) = self.platform else { return };
         let stems: Vec<&str> = entry.app.stems().collect();
-        let options: Vec<(String, String)> = p
-            .download_kinds()
+        let options: Vec<(String, String)> = entry
+            .app
+            .kinds()
             .iter()
             .filter_map(|k| {
                 pick_asset(r, &stems, p, &[*k])

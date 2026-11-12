@@ -394,7 +394,7 @@ impl LauncherUi {
         };
         let size = self.platform.and_then(|p| {
             let stems: Vec<&str> = entry.app.stems().collect();
-            pick_asset(r, &stems, p, p.default_kinds()).map(|(a, _)| widgets::human_bytes(a.size))
+            pick_asset(r, &stems, p, entry.app.kinds()).map(|(a, _)| widgets::human_bytes(a.size))
         });
         let facts: Vec<(&str, String)> = [
             (tl!("Version"), Some(r.version.as_ref().map_or_else(|| r.tag.clone(), |v| v.to_string()))),

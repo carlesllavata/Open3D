@@ -68,7 +68,7 @@ impl Backend for Fake {
             {
                 let platform = self.platform().unwrap();
                 let stems: Vec<_> = def.stems().collect();
-                if let Some((asset, kind)) = open3d_launcher_core::platform::pick_asset(release, &stems, platform, platform.default_kinds()) {
+                if let Some((asset, kind)) = open3d_launcher_core::platform::pick_asset(release, &stems, platform, def.kinds()) {
                     self.downloads.insert(app.clone(), (kind, asset.size));
                 }
             }

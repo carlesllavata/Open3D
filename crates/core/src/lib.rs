@@ -19,7 +19,7 @@ pub mod status;
 pub mod time;
 pub mod version;
 
-pub use catalog::{SUITE, SuiteApp};
+pub use catalog::{AppPackage, SUITE, SuiteApp};
 pub use platform::{Arch, Os, PackageKind, Platform};
 pub use release::{Asset, Release};
 pub use status::{AppStatus, InstallSource, Installed, Latest};

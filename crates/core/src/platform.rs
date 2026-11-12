@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Platforms, package formats, and choosing the right release asset.
 //!
-//! Every Open3D app release names its files `<app>-<version>-<os>-<arch>[-portable].<ext>`, for
-//! example `opentools-0.5.1-windows-x64-3dsmax.zip` or `open3d-launcher-0.2.0-windows-x64.msi`.
+//! Every Open3D app release names its files `<app>-<version>-<os>-<arch>[-portable|-3dsmax].<ext>`,
+//! for example `opentools-0.5.1-windows-x64-3dsmax.zip` (a 3ds Max plug-in),
+//! `phototool-0.1.0-windows-x64.zip` (a standalone app) or `open3d-launcher-0.2.0-windows-x64.msi`.
 //!
 //! Labels are English. The UI translates [`PackageKind::label`]; OS and architecture names are
 //! shown as they are.
@@ -51,6 +52,9 @@ pub enum PackageKind {
     /// Open3D: a 3ds Max plug-in bundle, a zip whose root holds `<App>.bundle`, unpacked into
     /// `ApplicationPlugins` (`<app>-<version>-windows-x64-3dsmax.zip`).
     MaxBundle,
+    /// Open3D: a standalone Windows app, a zip whose root holds `<App>.exe`, unpacked into
+    /// `Programs\Open3D\<App>` (`<app>-<version>-windows-x64.zip`).
+    AppZip,
 }
 
 impl PackageKind {
@@ -59,6 +63,7 @@ impl PackageKind {
             Self::Msi => "Installer (.msi)",
             Self::PortableZip => "Portable (.zip)",
             Self::MaxBundle => "3ds Max plug-in (.zip)",
+            Self::AppZip => "Windows app (.zip)",
         }
     }
 
@@ -67,6 +72,7 @@ impl PackageKind {
             Self::Msi => ".msi",
             Self::PortableZip => "-portable.zip",
             Self::MaxBundle => "-3dsmax.zip",
+            Self::AppZip => ".zip",
         }
     }
 }
@@ -110,20 +116,6 @@ impl Platform {
             (Os::Windows, Arch::Arm64) => &["windows-arm64", "windows-x64", "windows-x86"],
         }
     }
-
-    /// Package formats the launcher installs on this OS, in order of preference.
-    pub fn default_kinds(self) -> &'static [PackageKind] {
-        match self.os {
-            Os::Windows => &[PackageKind::MaxBundle],
-        }
-    }
-
-    /// Every format offered as a manual download on this OS (the web build's download menu).
-    pub fn download_kinds(self) -> &'static [PackageKind] {
-        match self.os {
-            Os::Windows => &[PackageKind::MaxBundle],
-        }
-    }
 }
 
 /// What an asset name says about itself.
@@ -160,7 +152,8 @@ fn strip_stem_prefix<'a>(base: &'a str, stem: &str, sep: char) -> Option<&'a str
 /// Reads `<stem>-<version>-<os>-<arch>[-portable|-3dsmax].<ext>`;
 /// `None` for checksums, zsync files, CLI and web bundles, or anything else.
 pub fn parse_asset_name(name: &str, stems: &[&str]) -> Option<AssetName> {
-    const KINDS: [PackageKind; 3] = [PackageKind::MaxBundle, PackageKind::PortableZip, PackageKind::Msi];
+    // The plain `.zip` of a standalone app comes after the zips with a longer suffix of their own.
+    const KINDS: [PackageKind; 4] = [PackageKind::MaxBundle, PackageKind::PortableZip, PackageKind::AppZip, PackageKind::Msi];
     let (kind, base) = KINDS.iter().find_map(|k| name.strip_suffix(k.suffix()).map(|b| (*k, b)))?;
     for stem in stems {
         if let Some(rest) = strip_stem_prefix(base, stem, '-') {
@@ -168,6 +161,12 @@ pub fn parse_asset_name(name: &str, stems: &[&str]) -> Option<AssetName> {
             let mut parts = rest.rsplitn(3, '-');
             let (Some(arch), Some(os), Some(version)) = (parts.next(), parts.next(), parts.next()) else { continue };
             if crate::version::parse(version).is_none() || !version.starts_with(|c: char| c.is_ascii_digit()) {
+                continue;
+            }
+            // A plain `.zip` says nothing by its suffix, so it must end in a Windows platform:
+            // `<app>-<version>-windows-x64-symbols.zip` is some other file, not version
+            // `<version>-windows` built for `x64-symbols`.
+            if kind == PackageKind::AppZip && os != "windows" {
                 continue;
             }
             return Some(AssetName { stem: (*stem).to_string(), version: version.to_string(), token: format!("{os}-{arch}"), kind });
@@ -201,5 +200,34 @@ mod tests {
         assert_eq!(arch("phototool-0.5.0-windows-x86.msi"), Some(Arch::X86));
         assert_eq!(arch("phototool-0.5.0-windows-arm64-portable.zip"), Some(Arch::Arm64));
         assert_eq!(arch("phototool-0.5.0-windows-x64-3dsmax.zip"), Some(Arch::X64));
+    }
+
+    #[test]
+    fn a_plain_zip_is_a_standalone_app_and_never_swallows_the_other_zips() {
+        let kind = |name: &str| parse_asset_name(name, &["phototool"]).map(|n| n.kind);
+        assert_eq!(kind("phototool-0.5.0-windows-x64.zip"), Some(PackageKind::AppZip));
+        assert_eq!(kind("phototool-0.5.0-beta.1-windows-x64.zip"), Some(PackageKind::AppZip));
+        assert_eq!(kind("phototool-0.5.0-windows-x64-3dsmax.zip"), Some(PackageKind::MaxBundle));
+        assert_eq!(kind("phototool-0.5.0-windows-x64-portable.zip"), Some(PackageKind::PortableZip));
+        assert_eq!(kind("phototool-0.5.0-windows-x64.msi"), Some(PackageKind::Msi));
+        // Source archives and zips with another suffix are not packages.
+        assert_eq!(kind("phototool-0.5.0-windows-x64-symbols.zip"), None);
+        assert_eq!(kind("phototool-0.5.0.zip"), None);
+        assert_eq!(kind("phototool-src.zip"), None);
+    }
+
+    #[test]
+    fn each_app_is_offered_only_its_own_kind_of_package() {
+        let release = |names: &[&str]| Release {
+            assets: names.iter().map(|n| Asset { name: (*n).into(), ..Asset::default() }).collect(),
+            ..Release::default()
+        };
+        let platform = Platform { os: Os::Windows, arch: Arch::X64 };
+        let both = release(&["phototool-0.5.0-windows-x64.zip", "phototool-0.5.0-windows-x64-3dsmax.zip"]);
+        let picked = |kinds: &[PackageKind]| pick_asset(&both, &["phototool"], platform, kinds).map(|(a, k)| (a.name.clone(), k));
+        assert_eq!(picked(&[PackageKind::AppZip]), Some(("phototool-0.5.0-windows-x64.zip".into(), PackageKind::AppZip)));
+        assert_eq!(picked(&[PackageKind::MaxBundle]), Some(("phototool-0.5.0-windows-x64-3dsmax.zip".into(), PackageKind::MaxBundle)));
+        let plugin_only = release(&["phototool-0.5.0-windows-x64-3dsmax.zip"]);
+        assert!(pick_asset(&plugin_only, &["phototool"], platform, &[PackageKind::AppZip]).is_none());
     }
 }

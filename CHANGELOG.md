@@ -2,6 +2,16 @@
 
 What each version of the Open3D Launcher adds, newest first.
 
+## In development
+
+- **Standalone apps.** The launcher can now install, update, open and remove an app that is a program of
+  its own rather than a 3ds Max plug-in. It goes in `Programs\Open3D\<App>` in your user folder, without
+  administrator rights, with shortcuts in the Start menu and on the desktop, and **Open** starts it.
+  Downloads are checked and updates put in place as for plug-ins: the version you have stays until the new
+  one is ready, and comes back if the update fails. Close the app before updating or removing it; the
+  launcher tells you when it is still open. Removing it keeps its settings. No app of this kind is in the
+  catalog yet.
+
 ## 0.2.1 — 11 November 2026
 
 - **OpenManager is in the launcher.** Install and update OpenManager (scene setups and batch rendering)

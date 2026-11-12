@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Installing, updating, removing and starting Open3D apps.
 //!
-//! Every Open3D app is a 3ds Max plug-in bundle, unpacked into
-//! `%APPDATA%\Autodesk\ApplicationPlugins\<App>.bundle` ([`crate::max_bundle`]).
+//! An Open3D app is a 3ds Max plug-in bundle, unpacked into
+//! `%APPDATA%\Autodesk\ApplicationPlugins\<App>.bundle` ([`crate::max_bundle`]), or a program of
+//! its own, unpacked into `%LOCALAPPDATA%\Programs\Open3D\<App>` ([`crate::standalone`]).
 //!
-//! Every download is checked against its published SHA-256 before anything is unpacked, a
-//! bundle is never changed while 3ds Max runs, and a new copy is fully in place before the old one goes.
+//! Every download is checked against its published SHA-256 before anything is unpacked, a bundle
+//! is never changed while 3ds Max runs nor a program while it runs itself, and a new copy is fully
+//! in place before the old one goes.
 
 use std::path::{Path, PathBuf};
 
@@ -55,7 +57,10 @@ pub(crate) fn install_at(
     #[cfg(windows)]
     let _commit = commit;
     let _destination = destination(app, kind, existing, previous, job.install_locations)?;
+    // A standalone app is asked about its own file below: another copy of it, started from
+    // somewhere else, has the same process name and is no reason to wait.
     if let Some(inst) = existing
+        && kind != PackageKind::AppZip
         && inst.source.launcher_can_update()
         && process::is_running(Path::new(&inst.location))
     {
@@ -63,6 +68,9 @@ pub(crate) fn install_at(
     }
     if kind == PackageKind::MaxBundle && crate::max_bundle::max_running() {
         return Err(crate::max_bundle::max_running_error());
+    }
+    if kind == PackageKind::AppZip && crate::standalone::exe_path(app).is_some_and(|exe| crate::standalone::running(&exe)) {
+        return Err(crate::standalone::running_error(app));
     }
     bind_artifact_version(app, release, asset)?;
     // A feed can't send an app back to an older build; only a version the person chose by name
@@ -82,8 +90,10 @@ pub(crate) fn install_at(
     (job.phase)(JobPhase::Installing);
     let version = release.version_label();
     let result = match kind {
-        PackageKind::Msi | PackageKind::PortableZip => Err(format!("{} is a 3ds Max plug-in, not a {}", app.name, kind.label())),
+        _ if !app.kinds().contains(&kind) => Err(format!("{} isn't installed from a {}", app.name, kind.label())),
+        PackageKind::Msi | PackageKind::PortableZip => Err(format!("{} isn't installed from a {}", app.name, kind.label())),
         PackageKind::MaxBundle => crate::max_bundle::install(app, &file, &version).map(Some),
+        PackageKind::AppZip => crate::standalone::install(app, &file, &version).map(Some),
     };
     match &result {
         Ok(_) => log::info!("{}: successfully installed/updated to {}", app.name, release.version_label()),
@@ -157,6 +167,8 @@ pub(crate) fn occupied(
         PackageKind::Msi => folder,
         PackageKind::PortableZip => Some(folder.unwrap_or_else(|| paths.apps()).join(app.id)),
         PackageKind::MaxBundle => crate::max_bundle::bundle_dir(app),
+        // The app's folder with something else in it: a copy with its program would have been detected.
+        PackageKind::AppZip => crate::standalone::Places::system().map(|places| crate::standalone::app_dir(app, &places)),
     };
     Ok(target.filter(|t| std::fs::symlink_metadata(t).is_ok()))
 }
@@ -170,7 +182,7 @@ fn destination(
     previous: Option<&Record>,
     locations: &InstallLocations,
 ) -> Result<Option<PathBuf>, String> {
-    if kind == PackageKind::MaxBundle {
+    if matches!(kind, PackageKind::MaxBundle | PackageKind::AppZip) {
         return Ok(None);
     }
     if kind == PackageKind::PortableZip && previous.is_some_and(|record| record.kind == PackageKind::PortableZip) {
@@ -213,6 +225,7 @@ pub fn default_folder(kind: PackageKind, arch: Option<Arch>, paths: &Paths) -> O
             },
             PackageKind::PortableZip => Some(paths.apps()),
             PackageKind::MaxBundle => crate::max_bundle::plugins_dir(),
+            PackageKind::AppZip => crate::standalone::Places::system().map(|places| places.apps),
         }
     }
 }
@@ -308,17 +321,21 @@ pub(crate) fn choose_kinds_on(
 }
 
 pub(crate) fn choose_kinds_with(
-    _app: &SuiteApp,
+    app: &SuiteApp,
     existing: Option<&Installed>,
     record: Option<&Record>,
     preferred: &[PackageKind],
     available: &[PackageKind],
     _can_pacman: bool,
 ) -> Vec<PackageKind> {
+    // An app is installed only from its own kind of package: a plug-in never from a program's zip.
+    let available: Vec<PackageKind> = available.iter().copied().filter(|k| app.kinds().contains(k)).collect();
+    let available = available.as_slice();
     if let Some(inst) = existing {
         let kind = match inst.source {
             InstallSource::Launcher => record.map(|r| r.kind),
             InstallSource::Bundle => Some(PackageKind::MaxBundle),
+            InstallSource::AppFolder => Some(PackageKind::AppZip),
         };
         if let Some(k) = kind.filter(|k| available.contains(k)) {
             return vec![k];
@@ -336,7 +353,7 @@ pub(crate) fn choose_kinds_with(
 /// Package formats this machine can install, best first.
 pub(crate) fn available_kinds() -> Vec<PackageKind> {
     #[cfg(windows)]
-    return vec![PackageKind::MaxBundle];
+    return vec![PackageKind::MaxBundle, PackageKind::AppZip];
     #[allow(unreachable_code)]
     Vec::new()
 }
@@ -392,6 +409,11 @@ pub(crate) fn uninstall(
 ) -> Result<(), String> {
     let _ = (record, stop, &phase, paths);
     let path = PathBuf::from(&installed.location);
+    // A standalone app is found by its own program, whoever installed it, and says itself whether
+    // that program is running.
+    if app.is_standalone() {
+        return crate::standalone::uninstall(app, &path);
+    }
     if matches!(installed.source, InstallSource::Launcher) && process::is_running(&path) {
         return Err(format!("{} is running. Quit it, then try again.", app.name));
     }
@@ -401,6 +423,7 @@ pub(crate) fn uninstall(
             crate::portable::remove(app, record.ok_or("the launcher has no record of these files")?)
         }
         InstallSource::Bundle => crate::max_bundle::uninstall(app, &path),
+        InstallSource::AppFolder => crate::standalone::uninstall(app, &path),
         InstallSource::Launcher if record.is_some_and(|r| r.kind == PackageKind::MaxBundle) => crate::max_bundle::uninstall(app, &path),
         #[cfg(windows)]
         // A tarball the launcher unpacked into its own folder: take the tree out and leave the
@@ -470,6 +493,31 @@ mod tests {
         assert_eq!(mac_applications_dir(&unwritable, Some(home.path())), Some(home.path().join("Applications")));
         assert!(!home.path().join("Applications").exists(), "a folder hint must not create ~/Applications");
         assert_eq!(mac_applications_dir(&unwritable, None), None);
+    }
+
+    /// A sample standalone app with a neutral name, beside the catalog's plug-ins.
+    fn program() -> SuiteApp {
+        let plugin = *SuiteApp::by_id("opentools").expect("OpenTools is in the catalog");
+        SuiteApp { id: "phototool", name: "PhotoTool", package: open3d_launcher_core::AppPackage::Standalone, ..plugin }
+    }
+
+    fn found(source: InstallSource) -> Installed {
+        Installed { version: None, source, location: String::new(), package: None, externally_managed: false, origin: None, installation: None }
+    }
+
+    #[test]
+    fn each_app_is_installed_only_from_its_own_kind_of_package() {
+        let plugin = *SuiteApp::by_id("opentools").expect("OpenTools is in the catalog");
+        let system = SystemKinds { available: available_kinds(), can_pacman: false };
+        assert_eq!(system.available, [PackageKind::MaxBundle, PackageKind::AppZip]);
+        assert_eq!(choose_kinds_on(&plugin, None, None, &[], &system), [PackageKind::MaxBundle]);
+        assert_eq!(choose_kinds_on(&program(), None, None, &[], &system), [PackageKind::AppZip]);
+        // A saved preference for another format changes nothing.
+        assert_eq!(choose_kinds_on(&plugin, None, None, &[PackageKind::AppZip], &system), [PackageKind::MaxBundle]);
+        assert_eq!(choose_kinds_on(&program(), None, None, &[PackageKind::MaxBundle, PackageKind::Msi], &system), [PackageKind::AppZip]);
+        // A copy found in its folder, put there by hand or by the launcher, is updated the same way.
+        assert_eq!(choose_kinds_on(&program(), Some(&found(InstallSource::AppFolder)), None, &[], &system), [PackageKind::AppZip]);
+        assert_eq!(choose_kinds_on(&plugin, Some(&found(InstallSource::Bundle)), None, &[], &system), [PackageKind::MaxBundle]);
     }
 
     #[test]
