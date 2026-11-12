@@ -51,9 +51,6 @@ first if you want them gone. Removing an app keeps its settings.
 - **OpenManager**: scene setups and batch rendering for 3ds Max (Corona and V-Ray; reads Pulze Scene Manager
   setups). [carlesllavata/OpenManager](https://github.com/carlesllavata/OpenManager)
 
-- **OpenElements**: renders only the render elements you tick in 3ds Max; masks and geometry elements render
-  in seconds (Corona; V-Ray not tested yet). [carlesllavata/OpenElements](https://github.com/carlesllavata/OpenElements)
-
 - **OpenView**: downloads 360 panoramas and photos from map applications at full resolution, with a 360
   viewer, crops and HDRIs. A program of its own: it doesn't need 3ds Max.
   [carlesllavata/OpenView](https://github.com/carlesllavata/OpenView)

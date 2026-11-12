@@ -2,6 +2,12 @@
 
 What each version of the Open3D Launcher adds, newest first.
 
+## In development
+
+- **OpenElements is no longer in the launcher: it is now the Render Elements tool of OpenTools.**
+  Install or update OpenTools to get it. If you installed OpenElements, uninstall it from the launcher
+  (or delete `OpenElements.bundle` from ApplicationPlugins with 3ds Max closed).
+
 ## 0.3.1 — 12 November 2026
 
 - **OpenElements is in the launcher.** Install and update OpenElements (render only the render elements you
