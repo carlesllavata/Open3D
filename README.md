@@ -59,6 +59,10 @@ first if you want them gone. Removing an app keeps its settings.
   LichtFeld Studio. A program of its own; it needs an NVIDIA graphics card (GTX 16 or RTX 20 series or newer).
   [carlesllavata/OpenGaussian](https://github.com/carlesllavata/OpenGaussian)
 
+- **OpenRef**: reference-image boards that float over 3ds Max or any other program: paste, crop, arrange
+  and annotate images, see-through or letting the mouse through. A program of its own: it doesn't need
+  3ds Max. [carlesllavata/OpenRef](https://github.com/carlesllavata/OpenRef)
+
 More apps are added to the catalog as they are published.
 
 ## How it works
@@ -77,7 +81,7 @@ More apps are added to the catalog as they are published.
   `exe` says (`exe = "bin/OpenGaussian.exe"`, for a program that needs the folders around it), and the exe's
   file properties must say the release's version. The launcher unpacks it into
   `%LOCALAPPDATA%\Programs\Open3D\<App>`, adds Start menu and desktop shortcuts on a first install and
-  removes them, and the whole folder, with the app. OpenView and OpenGaussian are standalone apps.
+  removes them, and the whole folder, with the app. OpenView, OpenGaussian and OpenRef are standalone apps.
 - **Launcher updates.** The launcher's own releases, in this repository, carry the MSI, the portable zip
   and `SHA256SUMS.txt`; an installed launcher downloads the same format it was installed from.
 

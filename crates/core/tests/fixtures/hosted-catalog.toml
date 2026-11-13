@@ -152,3 +152,41 @@ text = "Select, move and delete splats, with undo and redo."
 [[apps.details.features]]
 title = "Export"
 text = "Save to PLY, SOG, SPZ or USD, or as a web page anyone can open."
+
+[[apps]]
+color = [230, 57, 70]
+former_bundles = []
+former_ids = []
+former_names = []
+id = "openref"
+binary = "openref"
+package = "standalone"
+site = "https://github.com/carlesllavata/OpenRef"
+windows_msi_publisher = "Open3D"
+desktop_categories = ["Graphics", "Viewer"]
+startup_wm_class = "openref"
+icon_url = "https://raw.githubusercontent.com/carlesllavata/Open3D/main/launcher-app-icons/openref-9974ea483e2e3827d683607486d988f7257c9874e4b069ce36b9f7fae5bfc003.png"
+icon_sha256 = "9974ea483e2e3827d683607486d988f7257c9874e4b069ce36b9f7fae5bfc003"
+ink_dark = [255, 128, 136]
+ink_light = [196, 40, 52]
+kind = "official"
+name = "OpenRef"
+publisher = "Open3D"
+repo = "carlesllavata/OpenRef"
+tagline = "Reference-image boards that float over your work"
+[apps.details]
+headline = "Your references, pinned over 3ds Max."
+about = "OpenRef keeps reference images on an infinite board: paste or drop them, then move, scale, rotate, crop and annotate them, and save the board as one file with its images inside. Keep it on top of 3ds Max or any other program, see-through, or letting the mouse through to trace over a reference.\n\nIt is a program of its own: it does not need 3ds Max."
+platforms = "Windows 10 or 11 (64-bit)"
+[[apps.details.features]]
+title = "Paste and drop"
+text = "Images from the clipboard, Explorer or a browser copy, and notes from any text."
+[[apps.details.features]]
+title = "Crop and arrange"
+text = "Crop without losing the original, flip, grayscale, and pack, align or arrange by name."
+[[apps.details.features]]
+title = "Over your work"
+text = "Always on top, without a frame, see-through, or letting the mouse through to trace."
+[[apps.details.features]]
+title = "Boards in one file"
+text = "Boards keep their images inside, are autosaved, and export as one PNG."

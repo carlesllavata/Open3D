@@ -2,6 +2,12 @@
 
 What each version of the Open3D Launcher adds, newest first.
 
+## In development
+
+- **OpenRef is in the launcher.** Install, update and open OpenRef (reference-image boards that float over
+  3ds Max or any other program). It is a program of its own. Launchers already installed see it through
+  the signed catalog; this version also lists it without it.
+
 ## 0.3.3 — 13 November 2026
 
 - **OpenGaussian is in the launcher.** Install, update and open OpenGaussian (train, view, edit and export

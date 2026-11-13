@@ -350,4 +350,17 @@ opengaussian	Editing	Edición
 opengaussian	Select, move and delete splats, with undo and redo.	Selecciona, mueve y borra splats, con deshacer y rehacer.
 opengaussian	Export	Exportación
 opengaussian	Save to PLY, SOG, SPZ or USD, or as a web page anyone can open.	Guarda en PLY, SOG, SPZ o USD, o como una página web que cualquiera puede abrir.
+openref	Reference-image boards that float over your work	Tableros de referencias que flotan sobre tu trabajo
+openref	Your references, pinned over 3ds Max.	Tus referencias, clavadas sobre 3ds Max.
+openref	OpenRef keeps reference images on an infinite board: paste or drop them, then move, scale, rotate, crop and annotate them, and save the board as one file with its images inside. Keep it on top of 3ds Max or any other program, see-through, or letting the mouse through to trace over a reference.	OpenRef guarda imágenes de referencia en un tablero infinito: pégalas o suéltalas y luego muévelas, escálalas, gíralas, recórtalas y anótalas, y guarda el tablero en un solo archivo con sus imágenes dentro. Déjalo encima de 3ds Max o de cualquier otro programa, semitransparente o dejando pasar el ratón para calcar sobre una referencia.
+openref	It is a program of its own: it does not need 3ds Max.	Es un programa independiente: no necesita 3ds Max.
+openref	Windows 10 or 11 (64-bit)	Windows 10 u 11 (64 bits)
+openref	Paste and drop	Pegar y soltar
+openref	Images from the clipboard, Explorer or a browser copy, and notes from any text.	Imágenes del portapapeles, del Explorador o copiadas del navegador, y notas a partir de cualquier texto.
+openref	Crop and arrange	Recortar y ordenar
+openref	Crop without losing the original, flip, grayscale, and pack, align or arrange by name.	Recorta sin perder el original, voltea, pasa a escala de grises y empaqueta, alinea u ordena por nombre.
+openref	Over your work	Sobre tu trabajo
+openref	Always on top, without a frame, see-through, or letting the mouse through to trace.	Siempre encima, sin marco, semitransparente o dejando pasar el ratón para calcar.
+openref	Boards in one file	Tableros en un archivo
+openref	Boards keep their images inside, are autosaved, and export as one PNG.	Los tableros guardan sus imágenes dentro, se guardan solos y se exportan como un PNG.
 	Open in 3ds Max	Abrir en 3ds Max
