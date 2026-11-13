@@ -2,6 +2,15 @@
 
 What each version of the Open3D Launcher adds, newest first.
 
+## 0.3.3 — 13 November 2026
+
+- **OpenGaussian is in the launcher.** Install, update and open OpenGaussian (train, view, edit and export
+  3D Gaussian Splatting scenes from your photos) from the launcher. It is a program of its own and needs an
+  NVIDIA graphics card (GTX 16 or RTX 20 series or newer).
+- **Standalone apps whose program sits in a folder of their own.** An app can now keep its program in a
+  subfolder of its install folder (OpenGaussian's is in `bin`): the launcher checks its version there,
+  points the shortcuts at it, and removes the whole app folder when you uninstall.
+
 ## 0.3.2 — 12 November 2026
 
 - **OpenElements is no longer in the launcher: it is now the Render Elements tool of OpenTools.**

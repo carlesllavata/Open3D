@@ -337,4 +337,17 @@ openview	Crops	Recortes
 openview	Frame a view in the 360 viewer and save it as an ordinary photo.	Encuadra una vista en el visor 360 y guárdala como una foto normal.
 openview	HDRI	HDRI
 openview	Turn a panorama into an EXR or .hdr with a sun, to light a scene.	Convierte un panorama en un EXR o .hdr con sol, para iluminar una escena.
+opengaussian	3D Gaussian Splatting: train, view and edit	3D Gaussian Splatting: entrena, visualiza y edita
+opengaussian	Turn photos into a walkable 3D scene.	Convierte tus fotos en una escena 3D recorrible.
+opengaussian	OpenGaussian trains 3D Gaussian Splatting scenes from your photos, shows them in real time while they train, and lets you select, edit and export the splats to PLY, SOG, SPZ, USD or a web viewer.	OpenGaussian entrena escenas de 3D Gaussian Splatting a partir de tus fotos, las muestra en tiempo real mientras se entrenan y te deja seleccionar, editar y exportar los splats a PLY, SOG, SPZ, USD o a un visor web.
+opengaussian	It is a program of its own, based on LichtFeld Studio, and needs an NVIDIA graphics card (GTX 16 or RTX 20 series or newer).	Es un programa independiente, basado en LichtFeld Studio, y necesita una tarjeta gráfica NVIDIA (serie GTX 16 o RTX 20 o posterior).
+opengaussian	Windows 10 or 11 (64-bit), NVIDIA GTX 16 or RTX 20 series or newer	Windows 10 u 11 (64 bits), NVIDIA serie GTX 16 o RTX 20 o posterior
+opengaussian	Training	Entrenamiento
+opengaussian	Turns a set of photos into a splat scene on your graphics card, and resumes from checkpoints.	Convierte un conjunto de fotos en una escena de splats con tu tarjeta gráfica y retoma desde puntos de control.
+opengaussian	Live view	Vista en directo
+opengaussian	Look around the scene while it trains and inspect it in real time.	Recorre la escena mientras se entrena e inspecciónala en tiempo real.
+opengaussian	Editing	Edición
+opengaussian	Select, move and delete splats, with undo and redo.	Selecciona, mueve y borra splats, con deshacer y rehacer.
+opengaussian	Export	Exportación
+opengaussian	Save to PLY, SOG, SPZ or USD, or as a web page anyone can open.	Guarda en PLY, SOG, SPZ o USD, o como una página web que cualquiera puede abrir.
 	Open in 3ds Max	Abrir en 3ds Max

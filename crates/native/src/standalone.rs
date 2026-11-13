@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //! Open3D apps that are programs of their own: installing, updating, finding and removing them.
 //!
-//! A release asset (`<app>-<version>-windows-x64.zip`) holds `<App>.exe` and its files at its root.
-//! They go in `%LOCALAPPDATA%\Programs\Open3D\<App>`, beside the launcher's own folder: per user, so
-//! no administrator rights are needed. A first install adds `<App>.lnk` to the Start menu and to
-//! the desktop.
+//! A release asset (`<app>-<version>-windows-x64.zip`) holds `<App>.exe` and its files at its root,
+//! or the program where the catalog's `exe` says (`bin/OpenGaussian.exe`, for a program that needs
+//! the folders around it). They go in `%LOCALAPPDATA%\Programs\Open3D\<App>`, beside the launcher's
+//! own folder: per user, so no administrator rights are needed. A first install adds `<App>.lnk` to
+//! the Start menu and to the desktop.
 //!
 //! Work happens in `.open3d-<id>` beside the app folders, as for 3ds Max bundles
 //! ([`crate::max_bundle`]): the new copy is unpacked and checked in `new\<App>`, the old one waits in
@@ -59,9 +60,15 @@ fn shortcut_folders() -> Vec<PathBuf> {
         .collect()
 }
 
-/// The program's file name: `<App name>.exe` (`PhotoTool.exe`).
+/// The program as the package and messages name it: `<App name>.exe` (`PhotoTool.exe`), or the
+/// catalog's path inside the folder (`bin/OpenGaussian.exe`).
 pub fn exe_name(app: &SuiteApp) -> String {
-    format!("{}.exe", app.name)
+    app.exe_relative()
+}
+
+/// The program inside a folder that holds the app.
+pub fn exe_in(dir: &Path, app: &SuiteApp) -> PathBuf {
+    app.exe_relative().split('/').fold(dir.to_path_buf(), |path, part| path.join(part))
 }
 
 /// The app's folder in `places`, named after the app.
@@ -71,7 +78,7 @@ pub fn app_dir(app: &SuiteApp, places: &Places) -> PathBuf {
 
 /// Where this app's program lives on this account.
 pub fn exe_path(app: &SuiteApp) -> Option<PathBuf> {
-    Places::system().map(|places| app_dir(app, &places).join(exe_name(app)))
+    Places::system().map(|places| exe_in(&app_dir(app, &places), app))
 }
 
 /// Reads the version a program says it is. Tests pass their own reader.
@@ -102,7 +109,7 @@ pub fn detect(app: &SuiteApp) -> Option<Installed> {
 
 /// [`detect`] in `places`.
 pub(crate) fn detect_in(app: &SuiteApp, places: &Places, version_of: VersionOf<'_>) -> Option<Installed> {
-    let exe = app_dir(app, places).join(exe_name(app));
+    let exe = exe_in(&app_dir(app, places), app);
     if !exe.is_file() {
         return None;
     }
@@ -165,7 +172,7 @@ pub(crate) fn install_into(app: &SuiteApp, zip: &Path, version: &str, places: &P
     let apps = &places.apps;
     std::fs::create_dir_all(apps).map_err(|e| format!("Couldn't create {} ({e})", apps.display()))?;
     let target = apps.join(app.name);
-    let exe = target.join(exe_name(app));
+    let exe = exe_in(&target, app);
     if running(&exe) {
         return Err(running_error(app));
     }
@@ -201,7 +208,7 @@ fn swap_in(app: &SuiteApp, zip: &Path, version: &str, work: &Path, fresh: &Path,
     let file = std::fs::File::open(zip).map_err(|e| format!("Couldn't open the package ({e})"))?;
     let mut archive = zip::ZipArchive::new(file).map_err(|e| format!("The package isn't a valid zip ({e})"))?;
     archive.extract(fresh).map_err(|e| format!("Couldn't unpack the package ({e})"))?;
-    let new_exe = fresh.join(exe_name(app));
+    let new_exe = exe_in(fresh, app);
     if !new_exe.is_file() {
         return Err(format!("The package doesn't contain {}", exe_name(app)));
     }
@@ -235,9 +242,12 @@ pub fn uninstall(app: &SuiteApp, exe: &Path) -> Result<(), String> {
 
 /// [`uninstall`] in `places`.
 pub(crate) fn remove(app: &SuiteApp, exe: &Path, places: &Places) -> Result<(), String> {
-    let dir = exe.parent().ok_or("the program has no folder")?;
-    if !same_path(exe, &app_dir(app, places).join(exe_name(app))) {
-        return Err(format!("{} isn't {}'s folder, so it was left alone", dir.display(), app.name));
+    // The whole app folder goes, also when the program sits in a folder of its own inside it.
+    let app_folder = app_dir(app, places);
+    let dir = app_folder.as_path();
+    if !same_path(exe, &exe_in(dir, app)) {
+        let shown = exe.parent().unwrap_or(exe);
+        return Err(format!("{} isn't {}'s folder, so it was left alone", shown.display(), app.name));
     }
     if running(exe) {
         return Err(running_error(app));
@@ -553,6 +563,46 @@ mod tests {
         let zip = package(tmp.path(), Some("PhotoTool.exe"), "0.5.0", "x");
         assert!(install_into(&odd, &zip, "0.5.0", &places, &written_version).unwrap_err().contains("folder's name"));
         assert!(!places.apps.exists());
+    }
+
+    /// The sample app with its program in `bin`, next to folders it needs (OpenGaussian's layout).
+    fn nested_app() -> SuiteApp {
+        SuiteApp { exe: Some("bin/PhotoTool.exe"), ..app() }
+    }
+
+    #[test]
+    fn a_program_in_a_folder_of_its_own_is_installed_found_and_removed_whole() {
+        let tmp = tempfile::tempdir().unwrap();
+        let places = Places::under(&tmp.path().join("home"));
+        let a = nested_app();
+        let dir = places.apps.join("PhotoTool");
+        assert_eq!(exe_in(&dir, &a), dir.join("bin").join("PhotoTool.exe"));
+
+        // The program must be where the catalog says: one at the root isn't it.
+        let at_root = package(tmp.path(), Some("PhotoTool.exe"), "0.1.0", "root");
+        assert!(install_into(&a, &at_root, "0.1.0", &places, &written_version).unwrap_err().contains("doesn't contain bin/PhotoTool.exe"));
+
+        let record = install_into(&a, &package(tmp.path(), Some("bin/PhotoTool.exe"), "0.1.0", "old"), "0.1.0", &places, &written_version).unwrap();
+        assert_eq!(record.path, dir.join("bin").join("PhotoTool.exe"));
+        assert_eq!(names(&dir), ["LICENSE", "bin", "docs"]);
+        for folder in &places.shortcuts {
+            let target = shortcut_target(&folder.join("PhotoTool.lnk")).unwrap();
+            assert!(same_file(&target, &record.path), "{}", target.display());
+        }
+        let found = detect_in(&a, &places, &written_version).unwrap();
+        assert_eq!(found.version, version::parse("0.1.0"));
+        assert_eq!(found.location, record.path.to_string_lossy());
+        // Not found as the plain layout, and the plain layout's program isn't this one.
+        assert_eq!(detect_in(&app(), &places, &written_version), None);
+
+        install_into(&a, &package(tmp.path(), Some("bin/PhotoTool.exe"), "0.2.0", "new"), "0.2.0", &places, &written_version).unwrap();
+        assert_eq!(names(&dir.join("docs")), ["new.txt"]);
+
+        // A program of the same name elsewhere in the folder isn't the app's.
+        assert!(remove(&a, &dir.join("PhotoTool.exe"), &places).unwrap_err().contains("left alone"));
+        remove(&a, &record.path, &places).unwrap();
+        assert!(names(&places.apps).is_empty(), "the whole app folder goes, not only bin");
+        assert!(places.shortcuts.iter().all(|folder| !folder.join("PhotoTool.lnk").exists()));
     }
 
     #[test]

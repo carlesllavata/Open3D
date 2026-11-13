@@ -29,6 +29,8 @@ struct App {
     mac_bundle_name: Option<String>,
     /// `"standalone"` for a program of its own; a 3ds Max plug-in when missing.
     package: Option<String>,
+    /// A program of its own's exe inside its folder, `/`-separated, when it isn't `<name>.exe`.
+    exe: Option<String>,
     details: Option<Details>,
 }
 #[derive(Deserialize)]
@@ -74,9 +76,20 @@ fn main() -> Result<(), Box<dyn Error>> {
             Some("standalone") => "Standalone",
             Some(_) => return Err(format!("unknown package for {}", app.id).into()),
         };
+        if let Some(exe) = &app.exe {
+            // The same rule the signed catalog is held to (`hosted_catalog::valid_exe_path`), kept simple here.
+            let parts: Vec<&str> = exe.split('/').collect();
+            if package != "Standalone"
+                || parts.len() > 4
+                || parts.iter().any(|p| p.is_empty() || *p == "." || *p == ".." || p.contains(['\\', ':']))
+                || !exe.to_ascii_lowercase().ends_with(".exe")
+            {
+                return Err(format!("invalid exe for {}: {exe}", app.id).into());
+            }
+        }
         writeln!(
             apps,
-            "SuiteApp {{ id: {:?}, name: {:?}, tagline: {:?}, color: {:?}, ink_light: {:?}, ink_dark: {:?}, repo: {:?}, former_ids: {}, former_names: {}, kind: AppKind::{kind}, publisher: {:?}, msi_publisher: {}, bundle: {}, former_bundles: {}, site: {}, mac_team: {}, mac_bundle_name: {}, package: AppPackage::{package} }},",
+            "SuiteApp {{ id: {:?}, name: {:?}, tagline: {:?}, color: {:?}, ink_light: {:?}, ink_dark: {:?}, repo: {:?}, former_ids: {}, former_names: {}, kind: AppKind::{kind}, publisher: {:?}, msi_publisher: {}, bundle: {}, former_bundles: {}, site: {}, mac_team: {}, mac_bundle_name: {}, package: AppPackage::{package}, exe: {} }},",
             app.id,
             app.name,
             app.tagline,
@@ -92,7 +105,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             slice(&app.former_bundles),
             optional(&app.site),
             optional(&app.mac_team),
-            optional(&app.mac_bundle_name)
+            optional(&app.mac_bundle_name),
+            optional(&app.exe)
         )?;
         if let Some(d) = &app.details {
             write!(

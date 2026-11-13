@@ -41,7 +41,7 @@ choose **More info > Run anyway**. Updates are checked against the checksums pub
 Removing the launcher leaves the apps you installed with it where they are: remove them from the launcher
 first if you want them gone. Removing an app keeps its settings.
 
-> Status: early (v0.3.2). What each version adds: [CHANGELOG.md](CHANGELOG.md).
+> Status: early (v0.3.3). What each version adds: [CHANGELOG.md](CHANGELOG.md).
 
 ### Apps
 
@@ -54,6 +54,10 @@ first if you want them gone. Removing an app keeps its settings.
 - **OpenView**: downloads 360 panoramas and photos from map applications at full resolution, with a 360
   viewer, crops and HDRIs. A program of its own: it doesn't need 3ds Max.
   [carlesllavata/OpenView](https://github.com/carlesllavata/OpenView)
+
+- **OpenGaussian**: trains, views, edits and exports 3D Gaussian Splatting scenes from your photos, based on
+  LichtFeld Studio. A program of its own; it needs an NVIDIA graphics card (GTX 16 or RTX 20 series or newer).
+  [carlesllavata/OpenGaussian](https://github.com/carlesllavata/OpenGaussian)
 
 More apps are added to the catalog as they are published.
 
@@ -69,10 +73,11 @@ More apps are added to the catalog as they are published.
 - **3ds Max apps.** The package is `<id>-<version>-windows-x64-3dsmax.zip`, with the `.bundle` folder at the
   zip's root; the bundle's `PackageContents.xml` must say the release's version.
 - **Standalone apps.** An app the catalog marks `package = "standalone"` is a program of its own: the
-  package is `<id>-<version>-windows-x64.zip` with `<App>.exe` at the zip's root, and the exe's file
-  properties must say the release's version. The launcher unpacks it into
+  package is `<id>-<version>-windows-x64.zip` with `<App>.exe` at the zip's root, or where the catalog's
+  `exe` says (`exe = "bin/OpenGaussian.exe"`, for a program that needs the folders around it), and the exe's
+  file properties must say the release's version. The launcher unpacks it into
   `%LOCALAPPDATA%\Programs\Open3D\<App>`, adds Start menu and desktop shortcuts on a first install and
-  removes them with the app. OpenView is the first one.
+  removes them, and the whole folder, with the app. OpenView and OpenGaussian are standalone apps.
 - **Launcher updates.** The launcher's own releases, in this repository, carry the MSI, the portable zip
   and `SHA256SUMS.txt`; an installed launcher downloads the same format it was installed from.
 

@@ -113,3 +113,42 @@ text = "Frame a view in the 360 viewer and save it as an ordinary photo."
 [[apps.details.features]]
 title = "HDRI"
 text = "Turn a panorama into an EXR or .hdr with a sun, to light a scene."
+
+[[apps]]
+color = [91, 63, 214]
+former_bundles = []
+former_ids = []
+former_names = []
+id = "opengaussian"
+binary = "opengaussian"
+package = "standalone"
+exe = "bin/OpenGaussian.exe"
+site = "https://github.com/carlesllavata/OpenGaussian"
+windows_msi_publisher = "Open3D"
+desktop_categories = ["Graphics", "3DGraphics"]
+startup_wm_class = "opengaussian"
+icon_url = "https://raw.githubusercontent.com/carlesllavata/Open3D/main/launcher-app-icons/opengaussian-b330bf7f2568d986b2143646457dc5c8ace6be7ddb5518d459e905b4d6b4a23d.png"
+icon_sha256 = "b330bf7f2568d986b2143646457dc5c8ace6be7ddb5518d459e905b4d6b4a23d"
+ink_dark = [167, 139, 250]
+ink_light = [91, 63, 214]
+kind = "official"
+name = "OpenGaussian"
+publisher = "Open3D"
+repo = "carlesllavata/OpenGaussian"
+tagline = "3D Gaussian Splatting: train, view and edit"
+[apps.details]
+headline = "Turn photos into a walkable 3D scene."
+about = "OpenGaussian trains 3D Gaussian Splatting scenes from your photos, shows them in real time while they train, and lets you select, edit and export the splats to PLY, SOG, SPZ, USD or a web viewer.\n\nIt is a program of its own, based on LichtFeld Studio, and needs an NVIDIA graphics card (GTX 16 or RTX 20 series or newer)."
+platforms = "Windows 10 or 11 (64-bit), NVIDIA GTX 16 or RTX 20 series or newer"
+[[apps.details.features]]
+title = "Training"
+text = "Turns a set of photos into a splat scene on your graphics card, and resumes from checkpoints."
+[[apps.details.features]]
+title = "Live view"
+text = "Look around the scene while it trains and inspect it in real time."
+[[apps.details.features]]
+title = "Editing"
+text = "Select, move and delete splats, with undo and redo."
+[[apps.details.features]]
+title = "Export"
+text = "Save to PLY, SOG, SPZ or USD, or as a web page anyone can open."

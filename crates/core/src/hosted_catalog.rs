@@ -75,6 +75,9 @@ struct Record {
     /// `"standalone"` for a program of its own; a 3ds Max plug-in when missing.
     #[serde(default)]
     package: Option<String>,
+    /// A program of its own's exe inside its folder, `/`-separated, when it isn't `<name>.exe`.
+    #[serde(default)]
+    exe: Option<String>,
     icon_url: String,
     icon_sha256: String,
     desktop_categories: Vec<String>,
@@ -228,6 +231,7 @@ impl VerifiedCatalog {
                 mac_team: record.mac_team.map(intern),
                 // Checked by `valid_record`; an unknown word never gets this far.
                 package: AppPackage::from_catalog(record.package.as_deref()).unwrap_or(AppPackage::MaxBundle),
+                exe: record.exe.map(intern),
             });
         }
         for app in &SUITE {
@@ -284,6 +288,10 @@ fn valid_record(r: &Record) -> bool {
     if package == AppPackage::Standalone && !windows_file_name(&r.name) {
         return false;
     }
+    // Only a program of its own names its exe, and only somewhere inside its own folder.
+    if r.exe.as_deref().is_some_and(|exe| package != AppPackage::Standalone || !valid_exe_path(exe)) {
+        return false;
+    }
     let bundle = r.bundle.clone().unwrap_or_else(|| format!("io.github.carlesllavata.{}", r.id));
     if !bundle.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_')) || bundle.is_empty() {
         return false;
@@ -303,6 +311,7 @@ fn valid_record(r: &Record) -> bool {
             || r.mac_bundle_name.as_deref().unwrap_or(&r.name) != pinned.mac_bundle_name()
             || r.name != pinned.name
             || package != pinned.package
+            || r.exe.as_deref() != pinned.exe
         {
             return false;
         }
@@ -346,6 +355,16 @@ fn valid_record(r: &Record) -> bool {
 }
 
 /// A name Windows takes as a file or folder name as it is.
+/// A program's place inside its app folder: up to four `/`-separated names Windows takes as file
+/// names (no `.` or `..`, no drive or root), the last one an `.exe` (`bin/OpenGaussian.exe`).
+pub fn valid_exe_path(path: &str) -> bool {
+    let parts: Vec<&str> = path.split('/').collect();
+    parts.len() <= 4
+        && parts.iter().all(|part| windows_file_name(part) && *part != "." && *part != "..")
+        && path.len() > 4
+        && path.get(path.len() - 4..).is_some_and(|ext| ext.eq_ignore_ascii_case(".exe"))
+}
+
 pub fn windows_file_name(name: &str) -> bool {
     const RESERVED: [&str; 22] = [
         "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5",
@@ -491,6 +510,55 @@ mod tests {
             r.name = name.into();
             r.mac_bundle_name = Some(name.into());
             assert!(!valid_record(&r), "{name}");
+        }
+    }
+
+    #[test]
+    fn a_program_may_name_its_exe_inside_its_own_folder() {
+        let mut r = future_app();
+        r.package = Some("standalone".into());
+        r.exe = Some("bin/ExampleTool.exe".into());
+        assert!(valid_record(&r));
+        let verified = VerifiedCatalog { records: vec![r], rejected_entries: 0 };
+        let snapshot = verified.into_snapshot(HashMap::new());
+        let app = snapshot.apps.iter().find(|a| a.id == "exampletool").unwrap();
+        assert_eq!(app.exe_relative(), "bin/ExampleTool.exe");
+
+        for exe in [
+            "../ExampleTool.exe",
+            "bin/../../x.exe",
+            "C:/Windows/x.exe",
+            "/x.exe",
+            "bin\\x.exe",
+            "bin/x.bat",
+            "./x.exe",
+            "a/b/c/d/e.exe",
+            ".exe",
+            "bin//x.exe",
+        ] {
+            let mut r = future_app();
+            r.package = Some("standalone".into());
+            r.exe = Some(exe.into());
+            assert!(!valid_record(&r), "{exe}");
+        }
+        // A plug-in has no program to name.
+        let mut r = future_app();
+        r.exe = Some("ExampleTool.exe".into());
+        assert!(!valid_record(&r));
+        // A signature can't move the program of an app the launcher was built with.
+        for built_in in SUITE.iter().filter(|a| a.is_standalone()) {
+            let mut r = first_record();
+            r.id = built_in.id.into();
+            r.name = built_in.name.into();
+            r.repo = built_in.repo.into();
+            r.mac_bundle_name = Some(built_in.name.into());
+            r.package = Some("standalone".into());
+            r.exe = built_in.exe.map(str::to_string);
+            r.icon_url = format!("{ICON_BASE_URL}{}-{}.png", r.id, r.icon_sha256);
+            r.details = None;
+            assert!(valid_record(&r), "{}", built_in.id);
+            r.exe = Some("elsewhere/Other.exe".into());
+            assert!(!valid_record(&r), "{}", built_in.id);
         }
     }
 
