@@ -4,6 +4,9 @@ What each version of the Open3D Launcher adds, newest first.
 
 ## In development
 
+- **OpenFarm is in the launcher.** Install, update and open OpenFarm, a render farm for your own computers
+  (3ds Max and Blender scenes on every machine of the studio). It is a program of its own. Launchers
+  already installed see it through the signed catalog; this version also lists it without it.
 - **OpenRef is in the launcher.** Install, update and open OpenRef (reference-image boards that float over
   3ds Max or any other program). It is a program of its own. Launchers already installed see it through
   the signed catalog; this version also lists it without it.

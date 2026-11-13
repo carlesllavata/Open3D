@@ -363,4 +363,17 @@ openref	Over your work	Sobre tu trabajo
 openref	Always on top, without a frame, see-through, or letting the mouse through to trace.	Siempre encima, sin marco, semitransparente o dejando pasar el ratón para calcar.
 openref	Boards in one file	Tableros en un archivo
 openref	Boards keep their images inside, are autosaved, and export as one PNG.	Los tableros guardan sus imágenes dentro, se guardan solos y se exportan como un PNG.
+openfarm	A render farm for your own computers	Una granja de render con tus propios equipos
+openfarm	Render on every machine of the studio.	Renderiza en todas las máquinas del estudio.
+openfarm	OpenFarm turns the computers of your office into a render farm. Send a scene from 3ds Max or Blender and it renders on every machine that can take it, checks every frame and shows the progress in one window: Corona, V-Ray, V-Ray GPU and FStorm, Cycles and Eevee.	OpenFarm convierte los equipos de tu oficina en una granja de render. Envía una escena desde 3ds Max o Blender y se renderiza en todas las máquinas que pueden hacerlo, revisa cada fotograma y muestra el progreso en una sola ventana: Corona, V-Ray, V-Ray GPU y FStorm, Cycles y Eevee.
+openfarm	Install it on every computer of the farm. One of them runs the farm; the others join it to render and to send jobs.	Instálalo en todos los equipos de la granja. Uno de ellos lleva la granja; los demás se unen a él para renderizar y enviar trabajos.
+openfarm	Windows 10 or 11 (64-bit)	Windows 10 u 11 (64 bits)
+openfarm	Scenes stay loaded	Escenas siempre cargadas
+openfarm	3ds Max and Blender stay open between tasks, so each machine opens a scene once.	3ds Max y Blender siguen abiertos entre tareas, así que cada máquina abre la escena una sola vez.
+openfarm	Problems in the first minute	Los problemas, en el primer minuto
+openfarm	First, last and middle frames first; every frame is checked and gets a preview.	Primero el primer, el último y el fotograma central; cada fotograma se revisa y tiene su vista previa.
+openfarm	Fair and robust	Justa y robusta
+openfarm	Priorities, retries on other machines, and clear errors when a scene is wrong.	Prioridades, reintentos en otras máquinas y errores claros cuando una escena está mal.
+openfarm	Send from where you work	Envía desde donde trabajas
+openfarm	A button in 3ds Max, an add-on in Blender, or the farm's own window.	Un botón en 3ds Max, un complemento en Blender o la propia ventana de la granja.
 	Open in 3ds Max	Abrir en 3ds Max

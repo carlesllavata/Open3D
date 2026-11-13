@@ -63,6 +63,10 @@ first if you want them gone. Removing an app keeps its settings.
   and annotate images, see-through or letting the mouse through. A program of its own: it doesn't need
   3ds Max. [carlesllavata/OpenRef](https://github.com/carlesllavata/OpenRef)
 
+- **OpenFarm**: a render farm for your own computers: send 3ds Max (Corona, V-Ray, V-Ray GPU, FStorm) and
+  Blender (Cycles, Eevee) scenes to every machine of the studio. A program of its own, installed on every
+  computer of the farm. [carlesllavata/OpenFarm](https://github.com/carlesllavata/OpenFarm)
+
 More apps are added to the catalog as they are published.
 
 ## How it works
@@ -81,7 +85,7 @@ More apps are added to the catalog as they are published.
   `exe` says (`exe = "bin/OpenGaussian.exe"`, for a program that needs the folders around it), and the exe's
   file properties must say the release's version. The launcher unpacks it into
   `%LOCALAPPDATA%\Programs\Open3D\<App>`, adds Start menu and desktop shortcuts on a first install and
-  removes them, and the whole folder, with the app. OpenView, OpenGaussian and OpenRef are standalone apps.
+  removes them, and the whole folder, with the app. OpenView, OpenGaussian, OpenRef and OpenFarm are standalone apps.
 - **Launcher updates.** The launcher's own releases, in this repository, carry the MSI, the portable zip
   and `SHA256SUMS.txt`; an installed launcher downloads the same format it was installed from.
 

@@ -213,6 +213,7 @@ pub fn app_icon_png(id: &str) -> Option<&'static [u8]> {
         "openview" => include_bytes!("../../../assets/app-icons/openview.png"),
         "opengaussian" => include_bytes!("../../../assets/app-icons/opengaussian.png"),
         "openref" => include_bytes!("../../../assets/app-icons/openref.png"),
+        "openfarm" => include_bytes!("../../../assets/app-icons/openfarm.png"),
         _ => return None,
     })
 }
@@ -241,9 +242,9 @@ mod tests {
     }
 
     #[test]
-    fn openview_opengaussian_and_openref_are_the_standalone_apps_in_the_catalog() {
+    fn openview_opengaussian_openref_and_openfarm_are_the_standalone_apps_in_the_catalog() {
         let standalone: Vec<&str> = SUITE.iter().filter(|a| a.is_standalone()).map(|a| a.id).collect();
-        assert_eq!(standalone, ["openview", "opengaussian", "openref"]);
+        assert_eq!(standalone, ["openview", "opengaussian", "openref", "openfarm"]);
         let openview = SUITE.iter().find(|a| a.id == "openview").unwrap();
         assert_eq!((openview.name, openview.repo), ("OpenView", "carlesllavata/OpenView"));
         assert_eq!(openview.kinds(), [crate::PackageKind::AppZip]);
@@ -254,6 +255,9 @@ mod tests {
         let openref = SUITE.iter().find(|a| a.id == "openref").unwrap();
         assert_eq!((openref.name, openref.repo), ("OpenRef", "carlesllavata/OpenRef"));
         assert_eq!(openref.exe_relative(), "OpenRef.exe");
+        let openfarm = SUITE.iter().find(|a| a.id == "openfarm").unwrap();
+        assert_eq!((openfarm.name, openfarm.repo), ("OpenFarm", "carlesllavata/OpenFarm"));
+        assert_eq!(openfarm.exe_relative(), "OpenFarm.exe");
     }
 
     #[test]
