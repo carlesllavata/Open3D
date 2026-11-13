@@ -190,3 +190,41 @@ text = "Always on top, without a frame, see-through, or letting the mouse throug
 [[apps.details.features]]
 title = "Boards in one file"
 text = "Boards keep their images inside, are autosaved, and export as one PNG."
+
+[[apps]]
+color = [255, 140, 40]
+former_bundles = []
+former_ids = []
+former_names = []
+id = "openfarm"
+binary = "openfarm"
+package = "standalone"
+site = "https://github.com/carlesllavata/OpenFarm"
+windows_msi_publisher = "Open3D"
+desktop_categories = ["Graphics", "Network"]
+startup_wm_class = "openfarm"
+icon_url = "https://raw.githubusercontent.com/carlesllavata/Open3D/main/launcher-app-icons/openfarm-8ac893335174b285746b4be64f6434b01be6f19159656bc61a1ea0b0a74d5274.png"
+icon_sha256 = "8ac893335174b285746b4be64f6434b01be6f19159656bc61a1ea0b0a74d5274"
+ink_dark = [255, 176, 92]
+ink_light = [196, 92, 16]
+kind = "official"
+name = "OpenFarm"
+publisher = "Open3D"
+repo = "carlesllavata/OpenFarm"
+tagline = "A render farm for your own computers"
+[apps.details]
+headline = "Render on every machine of the studio."
+about = "OpenFarm turns the computers of your office into a render farm. Send a scene from 3ds Max or Blender and it renders on every machine that can take it, checks every frame and shows the progress in one window: Corona, V-Ray, V-Ray GPU and FStorm, Cycles and Eevee.\n\nInstall it on every computer of the farm. One of them runs the farm; the others join it to render and to send jobs."
+platforms = "Windows 10 or 11 (64-bit)"
+[[apps.details.features]]
+title = "Scenes stay loaded"
+text = "3ds Max and Blender stay open between tasks, so each machine opens a scene once."
+[[apps.details.features]]
+title = "Problems in the first minute"
+text = "First, last and middle frames first; every frame is checked and gets a preview."
+[[apps.details.features]]
+title = "Fair and robust"
+text = "Priorities, retries on other machines, and clear errors when a scene is wrong."
+[[apps.details.features]]
+title = "Send from where you work"
+text = "A button in 3ds Max, an add-on in Blender, or the farm's own window."
